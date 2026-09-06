@@ -1,0 +1,2306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F2E23">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Carnet à Deux">
+<title>Carnet à Deux</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --paper:#EDE6D6;
+  --paper-2:#E3DAC5;
+  --paper-3:#F5F0E4;
+  --ink:#1F2E23;
+  --ink-soft:#52604F;
+  --ink-faint:#8A8368;
+  --trail:#B5651D;
+  --trail-dark:#8f4f16;
+  --lake:#2C5F5D;
+  --lake-dark:#204442;
+  --gold:#C79A2E;
+  --line:#C9BFA6;
+  --danger:#9C3B2E;
+  --font-display: 'Iowan Old Style','Palatino Linotype', Palatino, Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+  --radius: 10px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font-body); font-size:16px; line-height:1.45;
+  overflow:hidden;
+}
+h1,h2,h3,.display{font-family:var(--font-display); font-weight:600; letter-spacing:.01em;}
+button{font-family:inherit; cursor:pointer;}
+input,textarea{font-family:inherit; font-size:16px;}
+:focus-visible{outline:2px solid var(--lake); outline-offset:2px;}
+::-webkit-scrollbar{width:0;height:0;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+
+/* ============ APP SHELL ============ */
+#app{position:fixed; inset:0; display:flex; flex-direction:column; max-width:560px; margin:0 auto; background:var(--paper); box-shadow:0 0 40px rgba(0,0,0,.15);}
+.topbar{
+  padding:calc(10px + var(--safe-t)) 16px 10px; display:flex; align-items:center; justify-content:space-between;
+  background:var(--ink); color:var(--paper-3); border-bottom:1px solid var(--line); flex:0 0 auto; z-index:20;
+}
+.topbar .brand{display:flex; align-items:center; gap:8px;}
+.topbar .brand .compass{font-size:20px; display:inline-block;}
+.topbar h1{font-size:19px; margin:0; color:var(--paper-3); line-height:1;}
+.topbar .sub{font-size:11px; color:#C9C2A6; margin-top:2px;}
+.topbar .profile-btn{
+  background:transparent; border:1px solid #4a5a4c; color:var(--paper-3); border-radius:8px;
+  padding:6px 10px; font-size:13px;
+}
+.app-loaded .compass{animation:spin-in .9s ease-out;}
+@keyframes spin-in{from{transform:rotate(-160deg) scale(.6); opacity:0;} to{transform:rotate(0) scale(1); opacity:1;}}
+
+main{flex:1 1 auto; position:relative; min-height:0;}
+.view{position:absolute; inset:0; display:none; flex-direction:column; min-height:0;}
+.view.active{display:flex;}
+
+/* ============ TAB BAR ============ */
+.tabbar{
+  flex:0 0 auto; display:flex; background:var(--paper-3); border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b); z-index:20;
+}
+.tabbar button{
+  flex:1; background:none; border:none; padding:9px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:2px;
+  color:var(--ink-faint); font-size:11px;
+}
+.tabbar button .ic{font-size:20px;}
+.tabbar button.active{color:var(--trail);}
+.tabbar button.add-btn .ic{
+  width:34px; height:34px; border-radius:9px; background:var(--trail); color:#fff; display:flex; align-items:center; justify-content:center;
+  font-size:20px; margin-top:-14px; border:3px solid var(--paper-3);
+}
+.tabbar button.add-btn.active .ic{background:var(--trail-dark);}
+
+/* ============ MAP VIEW ============ */
+#map{flex:1; width:100%; position:relative; z-index:0;}
+.map-overlay-top{position:absolute; top:10px; left:10px; right:10px; z-index:10; display:flex; flex-direction:column; gap:8px; pointer-events:none;}
+.map-search-wrap{position:relative; pointer-events:auto;}
+.map-search-row{display:flex; gap:8px;}
+#map-search-results{
+  position:absolute; left:0; right:44px; top:calc(100% + 6px); z-index:5; max-height:240px; overflow-y:auto;
+  box-shadow:0 4px 14px rgba(0,0,0,.2);
+}
+.map-search-row input{
+  flex:1; padding:10px 14px; border-radius:20px; border:1px solid var(--line); background:var(--paper-3);
+  box-shadow:0 2px 6px rgba(0,0,0,.12); font-size:14px; color:var(--ink);
+}
+.map-filter-btn{
+  flex:0 0 auto; width:38px; height:38px; border-radius:50%; background:var(--paper-3); border:1px solid var(--line);
+  font-size:16px; box-shadow:0 2px 6px rgba(0,0,0,.12);
+}
+.map-filter-btn.has-filters{border-color:var(--trail); color:var(--trail-dark);}
+.map-search-row2{display:flex; gap:8px; pointer-events:auto;}
+.weather-chip{
+  pointer-events:auto; background:var(--paper-3); border:1px solid var(--line); border-radius:20px; padding:7px 12px;
+  display:flex; align-items:center; gap:6px; font-size:13px; box-shadow:0 2px 6px rgba(0,0,0,.12); color:var(--ink);
+}
+.weather-chip .t{font-weight:600;}
+.locate-btn{
+  pointer-events:auto; margin-left:auto; background:var(--paper-3); border:1px solid var(--line); width:36px; height:36px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 2px 6px rgba(0,0,0,.12);
+}
+.map-fabs{position:absolute; right:12px; bottom:16px; z-index:10; display:flex; flex-direction:column; gap:10px; align-items:flex-end;}
+#import-banner{
+  position:absolute; left:10px; right:10px; bottom:16px; z-index:10; background:var(--ink); color:var(--paper-3);
+  border-radius:12px; padding:10px 14px; font-size:12.5px; box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+#import-banner .bar{height:5px; background:rgba(255,255,255,.2); border-radius:3px; margin-top:6px; overflow:hidden;}
+#import-banner .bar-fill{height:100%; background:var(--trail); width:0%; transition:width .3s;}
+.fab{
+  background:var(--ink); color:var(--paper-3); border:none; border-radius:22px; padding:11px 16px; font-size:14px;
+  display:flex; align-items:center; gap:6px; box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+.fab.filter-fab{background:var(--paper-3); color:var(--ink); border:1px solid var(--line);}
+.fab.filter-fab.has-filters{border-color:var(--trail); color:var(--trail-dark);}
+.fab.surprise-fab{background:var(--trail);}
+
+/* leaflet custom pins */
+.pin{
+  width:32px; height:32px; border-radius:8px; background:var(--paper-3); border:2px solid var(--ink);
+  display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:2px 2px 0 rgba(31,46,35,.35);
+}
+.pin.mine{border-color:var(--trail);}
+.userdot{width:18px; height:18px; border-radius:50%; background:var(--lake); border:3px solid #fff; box-shadow:0 0 0 3px rgba(44,95,93,.35);}
+.userdot-ring{width:18px; height:18px; border-radius:50%; background:rgba(44,95,93,.35); animation:pulse 2s infinite;}
+@keyframes pulse{0%{transform:scale(.6); opacity:.8;} 100%{transform:scale(2.6); opacity:0;}}
+.leaflet-popup-content-wrapper{background:var(--paper-3); color:var(--ink); border-radius:10px; font-family:var(--font-body);}
+.leaflet-popup-tip{background:var(--paper-3);}
+.popup-cat{font-size:22px;}
+.popup-title{font-family:var(--font-display); font-size:16px; margin:4px 0 2px;}
+.popup-meta{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
+.popup-actions{display:flex; gap:6px; margin-top:6px;}
+.popup-actions button{font-size:12px; padding:6px 8px; border-radius:7px; border:1px solid var(--line); background:var(--paper); color:var(--ink);}
+.popup-actions button.primary{background:var(--trail); color:#fff; border-color:var(--trail);}
+
+/* ============ LISTS (repertoire / watchlists) ============ */
+.list-header{padding:calc(12px + 0px) 16px 8px; background:var(--paper); border-bottom:1px solid var(--line); flex:0 0 auto;}
+.list-header h2{margin:0 0 8px; font-size:20px;}
+.search-row{display:flex; gap:8px;}
+.search-row input[type=text]{flex:1; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3);}
+.icon-btn{width:40px; height:40px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); font-size:16px;}
+.icon-btn.has-filters{border-color:var(--trail); color:var(--trail-dark);}
+.scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 24px;}
+.empty-state{padding:40px 16px; text-align:center; color:var(--ink-soft);}
+.empty-state .big{font-size:34px; display:block; margin-bottom:10px;}
+
+.activity-row{
+  display:flex; gap:10px; align-items:flex-start; padding:12px 4px; border-bottom:1px solid var(--line); background:transparent;
+  width:100%; text-align:left; border-left:none; border-right:none; border-top:none;
+}
+.activity-row .cat-badge{
+  width:38px; height:38px; border-radius:8px; background:var(--paper-2); border:1px solid var(--line);
+  display:flex; align-items:center; justify-content:center; font-size:18px; flex:0 0 auto;
+}
+.activity-row .info{flex:1; min-width:0; cursor:pointer;}
+.quick-add{
+  flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:1px solid var(--trail); background:var(--paper-3);
+  color:var(--trail-dark); font-size:18px; align-self:center; line-height:1;
+}
+.quick-add:active{background:var(--trail); color:#fff;}
+.activity-row .name{font-family:var(--font-display); font-size:16px; margin:0 0 2px;}
+.activity-row .meta{font-size:12px; color:var(--ink-soft); display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+.stars{color:var(--gold); font-size:12px; letter-spacing:1px;}
+.dist-tag{background:var(--paper-2); border-radius:6px; padding:1px 6px; font-size:11px; color:var(--ink-soft);}
+
+.subtabs{display:flex; gap:0; border-bottom:1px solid var(--line); padding:0 16px; flex:0 0 auto; background:var(--paper);}
+.subtabs button{flex:1; padding:10px 4px; background:none; border:none; border-bottom:3px solid transparent; color:var(--ink-soft); font-size:14px;}
+.subtabs button.active{color:var(--ink); border-color:var(--trail); font-weight:600;}
+
+.check-row{display:flex; align-items:center; gap:10px;}
+.check-circle{width:26px; height:26px; border-radius:50%; border:2px solid var(--line); flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:14px; background:var(--paper-3);}
+.check-circle.done{background:var(--lake); border-color:var(--lake); color:#fff;}
+.remove-x{background:none; border:none; color:var(--ink-faint); font-size:18px; padding:4px 6px;}
+
+/* ============ CHIPS ============ */
+.chip-group{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;}
+.chip{
+  padding:8px 12px; border-radius:20px; border:1px solid var(--line); background:var(--paper-3); font-size:13px;
+  display:flex; align-items:center; gap:5px; color:var(--ink-soft);
+}
+.chip.selected{background:var(--ink); border-color:var(--ink); color:var(--paper-3);}
+.chip.reco::after{content:"✓ suggéré"; font-size:10px; color:var(--trail-dark); margin-left:2px;}
+.chip.reco.selected::after{color:#e8d9c2;}
+.new-option-chip{border-style:dashed; color:var(--trail-dark); border-color:var(--trail);}
+
+/* ============ SHEETS (bottom sheet modal) ============ */
+.sheet-overlay{position:fixed; inset:0; background:rgba(31,46,35,.45); z-index:50; opacity:0; pointer-events:none; transition:opacity .2s;}
+.sheet-overlay.open{opacity:1; pointer-events:auto;}
+.sheet{
+  position:absolute; left:0; right:0; bottom:0; background:var(--paper); border-radius:18px 18px 0 0;
+  max-height:88vh; display:flex; flex-direction:column; transform:translateY(100%); transition:transform .25s ease-out;
+  box-shadow:0 -8px 30px rgba(0,0,0,.3);
+}
+.sheet-overlay.open .sheet{transform:translateY(0);}
+.sheet-grip{width:36px; height:4px; background:var(--line); border-radius:3px; margin:9px auto 2px;}
+.sheet-head{display:flex; align-items:center; justify-content:space-between; padding:6px 18px 10px; border-bottom:1px solid var(--line);}
+.sheet-head h3{margin:0; font-size:18px;}
+.sheet-head .close-x{background:none; border:none; font-size:20px; color:var(--ink-soft); padding:4px 6px;}
+.sheet-body{padding:14px 18px 24px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+.sheet-body.pad-safe{padding-bottom:calc(24px + var(--safe-b));}
+
+.field{margin-bottom:16px;}
+.field label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px; font-weight:600;}
+.field input[type=text], .field textarea{
+  width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); color:var(--ink);
+}
+.field textarea{min-height:70px; resize:vertical;}
+.field .hint{font-size:11px; color:var(--ink-faint); margin-top:4px;}
+.loc-methods{display:flex; flex-direction:column; gap:8px;}
+.loc-btn{padding:10px 12px; border-radius:9px; border:1px dashed var(--line); background:var(--paper-3); font-size:13px; text-align:left; color:var(--ink);}
+.loc-btn.set{border-style:solid; border-color:var(--lake); color:var(--lake-dark);}
+.geo-results{border:1px solid var(--line); border-radius:9px; margin-top:6px; overflow:hidden;}
+.geo-results button{display:block; width:100%; text-align:left; padding:9px 10px; border:none; border-bottom:1px solid var(--line); background:var(--paper-3); font-size:12.5px;}
+.geo-results button:last-child{border-bottom:none;}
+
+.rating-input{display:flex; gap:4px; font-size:26px;}
+.rating-input span{color:var(--line); cursor:pointer;}
+.rating-input span.on{color:var(--gold);}
+
+.btn-row{display:flex; gap:10px; margin-top:6px;}
+.btn{flex:1; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--paper-3); color:var(--ink); font-size:15px; font-weight:600;}
+.btn.primary{background:var(--trail); border-color:var(--trail); color:#fff;}
+.btn.danger-outline{border-color:var(--danger); color:var(--danger); background:var(--paper-3);}
+.btn.ghost{background:none; border:none; color:var(--ink-soft); font-weight:500;}
+
+/* detail sheet */
+.detail-hero{display:flex; align-items:center; gap:12px; margin-bottom:10px;}
+.detail-hero .cat-badge{width:50px; height:50px; font-size:24px;}
+.detail-hero h2{margin:0; font-size:20px;}
+.detail-hero .meta{font-size:12.5px; color:var(--ink-soft);}
+.tag-row{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0;}
+.tag{font-size:11.5px; padding:4px 9px; border-radius:14px; background:var(--paper-2); border:1px solid var(--line); color:var(--ink-soft);}
+.note-block{background:var(--paper-3); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0;}
+.review{border-top:1px solid var(--line); padding:10px 0;}
+.review .who{font-weight:600; font-size:13px;}
+.review .when{font-size:11px; color:var(--ink-faint);}
+.review p{margin:4px 0 0; font-size:13.5px;}
+
+/* onboarding */
+.onboard-card{text-align:center; padding:10px 4px 4px;}
+.onboard-card .big-compass{font-size:44px; margin-bottom:8px; display:block;}
+.onboard-card p{color:var(--ink-soft); font-size:14px; margin:6px 0 18px;}
+.onboard-card input{width:100%; padding:13px; border-radius:10px; border:1px solid var(--line); background:var(--paper-3); text-align:center; font-size:16px; margin-bottom:14px;}
+
+/* surprise reveal */
+.surprise-card{text-align:center; padding:4px 4px 10px;}
+.surprise-card .stamp{
+  width:80px; height:80px; border-radius:16px; background:var(--paper-3); border:3px solid var(--ink); margin:6px auto 14px;
+  display:flex; align-items:center; justify-content:center; font-size:38px; transform:rotate(-4deg);
+  animation:stamp-in .4s cubic-bezier(.2,1.4,.4,1);
+}
+@keyframes stamp-in{from{transform:rotate(-4deg) scale(2); opacity:0;} to{transform:rotate(-4deg) scale(1); opacity:1;}}
+.surprise-card h2{margin:0 0 4px;}
+.surprise-card .meta{color:var(--ink-soft); font-size:13px; margin-bottom:14px;}
+
+/* toast */
+#toast{
+  position:fixed; left:50%; bottom:calc(88px + var(--safe-b)); transform:translateX(-50%) translateY(20px); z-index:80;
+  background:var(--ink); color:var(--paper-3); padding:10px 16px; border-radius:20px; font-size:13.5px; opacity:0;
+  transition:all .25s; pointer-events:none; max-width:80%; text-align:center;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="compass">🧭</span>
+      <div>
+        <h1>Carnet à Deux</h1>
+        <div class="sub" id="sub-line">vos sorties, votre carte</div>
+      </div>
+    </div>
+    <button class="profile-btn" id="btn-profile">Profil</button>
+  </header>
+  <div id="storage-warning" style="display:none; background:#7a2e22; color:#fff; padding:9px 14px; font-size:12.5px; text-align:center; line-height:1.4;">
+    ⚠️ La sauvegarde ne semble pas active ici. Touche <strong>•••</strong> (en haut) → <strong>Publier</strong>, pour que vos données soient conservées.
+  </div>
+
+  <main>
+    <!-- ===== CARTE ===== -->
+    <section class="view active" id="view-carte">
+      <div id="map"></div>
+      <div class="map-overlay-top">
+        <div class="map-search-wrap">
+          <div class="map-search-row">
+            <input type="text" id="map-search" placeholder="🔍 Rechercher un lieu, un canton…">
+            <button class="map-filter-btn" id="btn-open-filters-map" title="Filtres">⚙️</button>
+          </div>
+          <div class="geo-results" id="map-search-results" style="display:none;"></div>
+        </div>
+        <div class="map-search-row2">
+          <div class="weather-chip" id="weather-chip">🌡️ <span class="t">Météo…</span></div>
+          <button class="locate-btn" id="btn-locate" title="Me localiser">📍</button>
+        </div>
+      </div>
+      <div class="map-fabs">
+        <button class="fab filter-fab" id="btn-open-filters">⚙️ Filtrer</button>
+        <button class="fab surprise-fab" id="btn-surprise">🎲 Surprends-nous</button>
+      </div>
+      <div id="import-banner" style="display:none;"></div>
+    </section>
+
+    <!-- ===== REPERTOIRE ===== -->
+    <section class="view" id="view-repertoire">
+      <div class="list-header">
+        <h2>Répertoire</h2>
+        <div class="search-row">
+          <input type="text" id="search-input" placeholder="Chercher un nom, un canton, une ville…">
+          <button class="icon-btn" id="btn-open-filters-2">⚙️</button>
+        </div>
+      </div>
+      <div class="scroll-area" id="repertoire-list"></div>
+    </section>
+
+    <!-- ===== WATCHLISTS ===== -->
+    <section class="view" id="view-watchlists">
+      <div class="list-header" style="border-bottom:none; padding-bottom:0;">
+        <h2>Watchlists</h2>
+      </div>
+      <div class="subtabs">
+        <button data-wl="perso" class="active">Ma liste</button>
+        <button data-wl="commune">Notre liste commune</button>
+      </div>
+      <div class="scroll-area" id="watchlist-list"></div>
+    </section>
+
+    <!-- ===== RECETTES ===== -->
+    <section class="view" id="view-recettes">
+      <div class="list-header">
+        <h2>Recettes</h2>
+        <div class="search-row">
+          <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
+          <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
+        </div>
+      </div>
+      <div class="scroll-area" id="recipes-list"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="carte" class="active"><span class="ic">🗺️</span>Carte</button>
+    <button data-view="repertoire"><span class="ic">📖</span>Répertoire</button>
+    <button class="add-btn" id="btn-add"><span class="ic">＋</span>Ajouter</button>
+    <button data-view="watchlists"><span class="ic">✦</span>Watchlists</button>
+    <button data-view="recettes"><span class="ic">🍳</span>Recettes</button>
+  </nav>
+</div>
+
+<!-- ===== SHEET: onboarding ===== -->
+<div class="sheet-overlay" id="sheet-onboard">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-body pad-safe">
+      <div class="onboard-card">
+        <span class="big-compass">🧭</span>
+        <h2>Bienvenue dans votre carnet</h2>
+        <p>Un prénom pour savoir qui a ajouté quoi et qui a laissé quel avis. Rien d'autre à faire — pas de mot de passe, pas de compte.</p>
+        <input type="text" id="onboard-name" placeholder="Ton prénom" maxlength="20">
+        <button class="btn primary" id="btn-onboard-save" style="width:100%;">C'est parti</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: profil & sauvegarde ===== -->
+<div class="sheet-overlay" id="sheet-profile">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Profil & sauvegarde</h3><button class="close-x" data-close="sheet-profile">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Ton prénom</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div id="profile-name-display" style="flex:1; font-family:var(--font-display); font-size:19px;"></div>
+          <button class="btn" id="btn-change-name" style="flex:0 0 auto;">Changer</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>💾 Sauvegarde</label>
+        <div class="hint" style="margin-bottom:10px;">Exporte toutes les activités, watchlists et réglages dans un fichier. Tu pourras ensuite l'enregistrer sur Google Drive, iCloud Drive, ou te l'envoyer par mail.</div>
+        <button class="btn primary" id="btn-export" style="width:100%;">📤 Exporter mes données</button>
+        <div class="hint" id="export-count" style="margin-top:8px;"></div>
+        <button class="btn" id="btn-import" style="width:100%; margin-top:10px;">📥 Restaurer depuis une sauvegarde</button>
+        <input type="file" accept="application/json,.json" id="import-file-input" style="display:none;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: filtres ===== -->
+<div class="sheet-overlay" id="sheet-filters">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Filtrer</h3><button class="close-x" data-close="sheet-filters">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Suggestion du jour</label>
+        <button class="chip" id="btn-reco-toggle" style="width:100%; justify-content:center;">🌤️ Activer la suggestion météo</button>
+      </div>
+      <div class="field">
+        <label>Catégories</label>
+        <div class="chip-group" id="filter-cats"></div>
+      </div>
+      <div class="field">
+        <label>Saison</label>
+        <div class="chip-group" id="filter-saisons"></div>
+      </div>
+      <div class="field">
+        <label>Temps à disposition</label>
+        <div class="chip-group" id="filter-durees"></div>
+      </div>
+      <div class="field">
+        <label>Canton / ville</label>
+        <input type="text" id="filter-lieu" placeholder="ex: Vaud, Genève, Lausanne…">
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="btn-reset-filters">Réinitialiser</button>
+        <button class="btn primary" id="btn-apply-filters">Appliquer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: formulaire ajout/edition ===== -->
+<div class="sheet-overlay" id="sheet-form">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="form-title">Nouvelle activité</h3><button class="close-x" data-close="sheet-form">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Nom de l'activité *</label>
+        <input type="text" id="f-name" placeholder="ex: Musée Olympique, Lac de Joux…">
+      </div>
+      <div class="field">
+        <label>Catégories</label>
+        <div class="chip-group" id="f-cats"></div>
+      </div>
+      <div class="field">
+        <label>Emplacement *</label>
+        <div class="loc-methods">
+          <button class="loc-btn" id="f-loc-current">📍 Utiliser ma position actuelle</button>
+          <button class="loc-btn" id="f-loc-map">🗺️ Choisir un point sur la carte</button>
+
+          <div class="hint" style="margin-top:2px;"><strong>Le plus fiable avec Google Maps :</strong> appuie longuement sur l'endroit → une carte apparaît en bas avec les coordonnées (ex: 46.519300, 6.632300) → touche-les pour les copier → colle-les ci-dessous.</div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" inputmode="decimal" id="f-lat" placeholder="Latitude, ex: 46.5193" style="flex:1;">
+            <input type="text" inputmode="decimal" id="f-lng" placeholder="Longitude, ex: 6.6323" style="flex:1;">
+          </div>
+          <button class="loc-btn" id="f-loc-latlng-btn" type="button">📌 Définir avec ces coordonnées</button>
+
+          <input type="text" id="f-loc-gmaps" placeholder="Ou colle un lien Google Maps complet">
+          <button class="loc-btn" id="f-loc-gmaps-btn" type="button">📋 Valider ce lien</button>
+          <button class="loc-btn" id="f-loc-gmaps-openlink" type="button" style="display:none;">↗ Ouvrir ce lien pour voir les coordonnées</button>
+          <div class="hint">⚠️ Les liens raccourcis (<em>maps.app.goo.gl/…</em>) ne fonctionnent pas directement — l'appli ne peut pas voir ce qu'ils cachent. Utilise plutôt les coordonnées ci-dessus, ou touche "Ouvrir ce lien" pour trouver l'adresse complète.</div>
+
+          <input type="text" id="f-loc-search" placeholder="Ou tape une adresse / un lieu…">
+          <button class="loc-btn" id="f-loc-search-btn" type="button">🔍 Rechercher ce lieu</button>
+          <div class="geo-results" id="f-geo-results" style="display:none;"></div>
+        </div>
+        <div class="hint" id="f-loc-status">Aucun emplacement défini pour l'instant.</div>
+      </div>
+      <div class="field">
+        <label>Canton / ville (modifiable librement)</label>
+        <input type="text" id="f-canton" placeholder="ex: Vaud — Lausanne">
+      </div>
+      <div class="field">
+        <label>Saison idéale</label>
+        <div class="chip-group" id="f-saisons"></div>
+      </div>
+      <div class="field">
+        <label>Météo idéale</label>
+        <div class="chip-group" id="f-meteos"></div>
+      </div>
+      <div class="field">
+        <label>Temps nécessaire</label>
+        <div class="chip-group" id="f-durees"></div>
+      </div>
+      <div class="field">
+        <label>Note perso (optionnel)</label>
+        <textarea id="f-notes" placeholder="Une info utile, un conseil, un souvenir…"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger-outline" id="btn-delete-activity" style="display:none;">Supprimer</button>
+        <button class="btn primary" id="btn-save-activity" style="flex:2;">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: détail ===== -->
+<div class="sheet-overlay" id="sheet-detail">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Détail</h3><button class="close-x" data-close="sheet-detail">✕</button></div>
+    <div class="sheet-body pad-safe" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: formulaire recette ===== -->
+<div class="sheet-overlay" id="sheet-recipe-form">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="recipe-form-title">Nouvelle recette</h3><button class="close-x" data-close="sheet-recipe-form">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Nom du plat *</label>
+        <input type="text" id="rf-title" placeholder="ex: Tartiflette de mamie">
+      </div>
+      <div class="field">
+        <label>Type</label>
+        <div class="chip-group" id="rf-tags"></div>
+      </div>
+      <div class="field">
+        <label>Photos (jusqu'à 3)</label>
+        <input type="file" accept="image/*" id="rf-photo-input" multiple>
+        <div id="rf-photo-preview" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
+      </div>
+      <div class="field">
+        <label>Ingrédients</label>
+        <textarea id="rf-ingredients" placeholder="Un ingrédient par ligne…" style="min-height:100px;"></textarea>
+      </div>
+      <div class="field">
+        <label>Préparation</label>
+        <textarea id="rf-steps" placeholder="Les étapes, dans l'ordre…" style="min-height:120px;"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger-outline" id="btn-delete-recipe" style="display:none;">Supprimer</button>
+        <button class="btn primary" id="btn-save-recipe" style="flex:2;">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: détail recette ===== -->
+<div class="sheet-overlay" id="sheet-recipe-detail">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Recette</h3><button class="close-x" data-close="sheet-recipe-detail">✕</button></div>
+    <div class="sheet-body pad-safe" id="recipe-detail-body"></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: surprise ===== -->
+<div class="sheet-overlay" id="sheet-surprise">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Verdict du hasard</h3><button class="close-x" data-close="sheet-surprise">✕</button></div>
+    <div class="sheet-body pad-safe" id="surprise-body"></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: nouvelle option météo/durée ===== -->
+<div class="sheet-overlay" id="sheet-add-option">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="opt-sheet-title">Nouvelle option</h3><button class="close-x" data-close="sheet-add-option">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Emoji (optionnel)</label>
+        <input type="text" id="opt-emoji" placeholder="ex: ❄️" maxlength="4" style="width:70px; text-align:center; font-size:22px;">
+      </div>
+      <div class="field">
+        <label>Nom de l'option</label>
+        <input type="text" id="opt-label" placeholder="ex: Neige, Brouillard…" maxlength="24">
+      </div>
+      <button class="btn primary" id="btn-save-option" style="width:100%;">Ajouter cette option</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script>
+"use strict";
+const firebaseConfig = {
+  apiKey: "AIzaSyAOJ7AHQvFuK2A-OjdTULvvUoR2Fsl2clg",
+  authDomain: "bibou-bifou.firebaseapp.com",
+  databaseURL: "https://bibou-bifou-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "bibou-bifou",
+  storageBucket: "bibou-bifou.firebasestorage.app",
+  messagingSenderId: "947128985286",
+  appId: "1:947128985286:web:2b81eb1ead0ad5db9459c7"
+};
+firebase.initializeApp(firebaseConfig);
+const fbdb = firebase.database();
+</script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   DONNÉES DE RÉFÉRENCE
+   ============================================================ */
+const CATEGORIES = [
+  {id:'musee', label:'Musée', emoji:'🏛️', weather:'indoor'},
+  {id:'rando', label:'Randonnée', emoji:'🥾', weather:'outdoor'},
+  {id:'lac', label:'Lac & baignade', emoji:'🌊', weather:'outdoor'},
+  {id:'resto', label:'Restaurant', emoji:'🍽️', weather:'any'},
+  {id:'ville', label:'Balade en ville', emoji:'🏙️', weather:'any'},
+  {id:'parc', label:'Parc & nature', emoji:'🌳', weather:'outdoor'},
+  {id:'cafe', label:'Café / Bar', emoji:'☕', weather:'any'},
+  {id:'sport', label:'Sport & activité', emoji:'⚽', weather:'any'},
+  {id:'culture', label:'Culture & spectacle', emoji:'🎭', weather:'indoor'},
+  {id:'shopping', label:'Shopping', emoji:'🛍️', weather:'indoor'},
+  {id:'aventure', label:'Parc aventure', emoji:'🎢', weather:'outdoor'},
+  {id:'aerien', label:'Sensations aériennes', emoji:'🪂', weather:'outdoor'},
+  {id:'spa', label:'Spa & bien-être', emoji:'🧖', weather:'indoor'},
+  {id:'zoo', label:'Zoo & parc animalier', emoji:'🦒', weather:'outdoor'},
+  {id:'hiver', label:'Sports d\'hiver', emoji:'⛷️', weather:'outdoor'},
+  {id:'insolite', label:'Loisirs insolites', emoji:'🎯', weather:'any'},
+];
+const SAISONS = [
+  {id:'printemps', label:'Printemps', emoji:'🌸'},
+  {id:'ete', label:'Été', emoji:'☀️'},
+  {id:'automne', label:'Automne', emoji:'🍂'},
+  {id:'hiver', label:'Hiver', emoji:'❄️'},
+  {id:'toute', label:'Toute saison', emoji:'🔄'},
+];
+const DUREES = [
+  {id:'rapide', label:'Vite fait (< 1h)', emoji:'⚡'},
+  {id:'demi', label:'Demi-journée', emoji:'🕓'},
+  {id:'journee', label:'Journée complète', emoji:'🌅'},
+];
+const METEOS = [
+  {id:'beau', label:'Beau temps', emoji:'☀️'},
+  {id:'pluie', label:'Jour de pluie', emoji:'🌧️'},
+  {id:'peu-importe', label:'Peu importe', emoji:'🌤️'},
+];
+const RECIPE_TAGS = [
+  {id:'entree', label:'Entrée', emoji:'🥗'},
+  {id:'plat', label:'Plat', emoji:'🍽️'},
+  {id:'dessert', label:'Dessert', emoji:'🍰'},
+  {id:'apero', label:'Apéro', emoji:'🍹'},
+  {id:'boisson', label:'Boisson', emoji:'🥤'},
+  {id:'autre', label:'Autre', emoji:'🍲'},
+];
+const catById = id => CATEGORIES.concat(State.customCategories||[]).find(c=>c.id===id);
+
+/* ============================================================
+   IMPORT DU GUIDE (fournis par l'utilisateur, 2 photos)
+   Format de chaque ligne : [nom, ville, canton/région, pays]
+   ============================================================ */
+const SEED_ACTIVITIES = [
+  // --- Neuchâtel ---
+  ["ColoRoom","Bôle","Neuchâtel","Suisse"],
+  ["Navigation Lac des Brenets","Les Brenets","Neuchâtel","Suisse"],
+  ["Robella Val-de-Travers – Luge Féeline","Buttes","Neuchâtel","Suisse"],
+  ["Musée international d'horlogerie","La Chaux-de-Fonds","Neuchâtel","Suisse"],
+  ["XL Bowling","La Chaux-de-Fonds","Neuchâtel","Suisse"],
+  ["EspaceVAL","Couvet","Neuchâtel","Suisse"],
+  ["Cinéma Colisée","Couvet","Neuchâtel","Suisse"],
+  ["Laténium – Parc et musée d'archéologie","Hauterive","Neuchâtel","Suisse"],
+  ["Moulins souterrains du Col-des-Roches","Le Locle","Neuchâtel","Suisse"],
+  ["Muséum d'Histoire Naturelle","Neuchâtel","Neuchâtel","Suisse"],
+  ["Swin golf, foot golf et disc golf de Neuchâtel","Neuchâtel","Neuchâtel","Suisse"],
+  ["Train touristique de Neuchâtel, La Chaux-de-Fonds et Le Locle","Neuchâtel","Neuchâtel","Suisse"],
+  ["Fun Laser","Saint-Blaise","Neuchâtel","Suisse"],
+  ["YAZOO Family Center","Thielle-Wavre","Neuchâtel","Suisse"],
+  ["Mines d'asphalte de Travers","Travers","Neuchâtel","Suisse"],
+  ["Une journée à vélo au Val-de-Travers","Travers","Neuchâtel","Suisse"],
+  ["Toboggan géant de La Vue-des-Alpes","La Vue-des-Alpes","Neuchâtel","Suisse"],
+  // --- Fribourg ---
+  ["Maison Cailler – Chocolaterie suisse","Broc","Fribourg","Suisse"],
+  ["L'Entrepôt","Bulle","Fribourg","Suisse"],
+  ["QuizTrap","Bulle","Fribourg","Suisse"],
+  ["Mush'Harmonie","Cerniat","Fribourg","Suisse"],
+  ["Anemos Parapente","Charmey","Fribourg","Suisse"],
+  ["Papiliorama","Chiètres-Kerzers","Fribourg","Suisse"],
+  ["Flying Devil – Survol des Alpes en copilote","Ecuvillens","Fribourg","Suisse"],
+  ["Espace 1606","Fribourg","Fribourg","Suisse"],
+  ["Fribourg Golf Urbain","Fribourg","Fribourg","Suisse"],
+  ["FriBowling & Laser-District","Fribourg","Fribourg","Suisse"],
+  ["Grimper.ch","Givisiez","Fribourg","Suisse"],
+  ["Kaeserberg","Granges-Paccot","Fribourg","Suisse"],
+  ["Château de Gruyères","Gruyères","Fribourg","Suisse"],
+  ["La Maison du Gruyère","Gruyères","Fribourg","Suisse"],
+  ["Circuit secret de Morat Lumières","Morat","Fribourg","Suisse"],
+  ["Vitromusée Romont – Musée suisse du vitrail et des arts du verre","Romont","Fribourg","Suisse"],
+  ["Circuit secret de Rue","Rue","Fribourg","Suisse"],
+  ["ColoRoom","Villars-sur-Glâne","Fribourg","Suisse"],
+  // --- Jura et Jura bernois ---
+  ["Maison de la Tête de Moine et Fromagerie des Franches-Montagnes","Bellelay / Le Noirmont","Jura / Jura bernois","Suisse"],
+  ["Jura Escapades Huskys","Les Bois","Jura / Jura bernois","Suisse"],
+  ["Swin golf / Foot golf / Tir à l'arc – La Caquerelle","Cornol / Asuel","Jura / Jura bernois","Suisse"],
+  ["Tourisme équestre","Courtedoux","Jura / Jura bernois","Suisse"],
+  ["Camille Bloch","Courtelary","Jura / Jura bernois","Suisse"],
+  ["Sikypark – Le parc suisse de sauvetage animalier","Crémines","Jura / Jura bernois","Suisse"],
+  ["Jumping Jack","Delémont","Jura / Jura bernois","Suisse"],
+  ["Circuit secret de Porrentruy et de Delémont","Porrentruy / Delémont","Jura / Jura bernois","Suisse"],
+  ["Ô Vergers d'Ajoie – Musée suisse des fruits et de la distillation","Porrentruy","Jura / Jura bernois","Suisse"],
+  ["Forest Jump","Les Prés-d'Orvin","Jura / Jura bernois","Suisse"],
+  ["Aventure Jura Parc – Accrobranche – Parcours d'arbalète – Escape game","Rebeuvelier / Porrentruy","Jura / Jura bernois","Suisse"],
+  ["Grottes de Réclère","Réclère","Jura / Jura bernois","Suisse"],
+  ["Préhisto-parc","Réclère","Jura / Jura bernois","Suisse"],
+  ["Chemins de fer du Jura – Trottinette","Saignelégier","Jura / Jura bernois","Suisse"],
+  ["Jura Sport & Spa Resort","Saignelégier","Jura / Jura bernois","Suisse"],
+  ["Circuit secret de Saint-Imier et de Saint-Ursanne","St-Imier / St-Ursanne","Jura / Jura bernois","Suisse"],
+  ["Funiculaire Saint-Imier Mont-Soleil – Velectro et Raquettes à neige","Saint-Imier","Jura / Jura bernois","Suisse"],
+  ["E-Trottinette & E-VTT – Maison du tourisme","Saint-Ursanne","Jura / Jura bernois","Suisse"],
+  ["Escapades fluviales – Canoë-kayak et balade en rosalie","Saint-Ursanne","Jura / Jura bernois","Suisse"],
+  ["Outdoor Game","Saint-Ursanne","Jura / Jura bernois","Suisse"],
+  // --- Genève ---
+  ["Les Bains de Cressy","Confignon","Genève","Suisse"],
+  ["CUBE Challenges","Genève","Genève","Suisse"],
+  ["Game Over – Escape Rooms","Genève","Genève","Suisse"],
+  ["Geneva City Pass","Genève","Genève","Suisse"],
+  ["Genève-Servette Hockey Club","Genève","Genève","Suisse"],
+  ["Swing Interactive mini-golf","Genève / Les Acacias","Genève","Suisse"],
+  ["Musée d'ethnographie","Genève","Genève","Suisse"],
+  ["Musée international de la Croix-Rouge et du Croissant-Rouge","Genève","Genève","Suisse"],
+  ["Trains touristiques de Genève","Genève","Genève","Suisse"],
+  ["Virtual Room","Genève","Genève","Suisse"],
+  ["AIRLOOP","Grand-Lancy","Genève","Suisse"],
+  ["Servette FC","Grand-Lancy","Genève","Suisse"],
+  ["Parc Aventure Genève","Onex","Genève","Suisse"],
+  ["Gravity Park","Meyrin","Genève","Suisse"],
+  ["Grimper.ch","Satigny","Genève","Suisse"],
+  ["Salle d'escalade de bloc – Totem Escalade","Vernier","Genève","Suisse"],
+  ["Diving Adventures","Versoix","Genève","Suisse"],
+  ["Voltige équestre et balade à poney","Versoix","Genève","Suisse"],
+  // --- Suisse alémanique et Tessin ---
+  ["Fabrique d'Emmental « 4 Dairies 4 You »","Affoltern im Emmental","Suisse alémanique","Suisse"],
+  ["Parc aquatique de Bernaqua","Berne","Suisse alémanique","Suisse"],
+  ["Lasercity","Bienne","Suisse alémanique","Suisse"],
+  ["Verrerie d'Hergiswil","Hergiswil","Suisse alémanique","Suisse"],
+  ["Ballenberg – Musée suisse en plein air","Hofstetten bei Brienz","Suisse alémanique","Suisse"],
+  ["Trauffer – Musée de la vachette en bois","Hofstetten bei Brienz","Suisse alémanique","Suisse"],
+  ["Gameorama – Interactive Game Museum","Lucerne","Suisse alémanique","Suisse"],
+  ["Planétarium, Cinéthéâtre & Swiss Chocolate Adventure","Lucerne","Suisse alémanique","Suisse"],
+  ["Alpamare","Pfäffikon","Suisse alémanique","Suisse"],
+  ["Aquabasilea","Pratteln","Suisse alémanique","Suisse"],
+  ["Grimselwelt","Schattenhalb","Suisse alémanique","Suisse"],
+  ["Sensorium","Walkringen","Suisse alémanique","Suisse"],
+  ["Swiss Science Center Technorama","Winterthour","Suisse alémanique","Suisse"],
+  ["Open Bus de Zurich","Zurich","Suisse alémanique","Suisse"],
+  ["Splash & Spa Tamaro","Rivera-Montecereni","Tessin","Suisse"],
+  // --- France & Italie voisines ---
+  ["Citadelle de Besançon","Besançon","Doubs","France"],
+  ["Fantasticable Hiver","Châtel","Haute-Savoie","France"],
+  ["Parc Dino-Zoo","Charbonnières-les-Sapins","Doubs","France"],
+  ["UCPA Vitam – Espace Bien-être & Spa","Neydens","Haute-Savoie","France"],
+  ["UCPA Vitam – Parc aquatique","Neydens","Haute-Savoie","France"],
+  ["Commando Games","Les Rousses","Jura (FR)","France"],
+  ["Parc du Petit Prince","Ungersheim","Haut-Rhin","France"],
+  ["Domaine skiable de Valmorel – Le Grand Domaine","Valmorel","Savoie","France"],
+  ["Parc des Oiseaux","Villars-les-Dombes","Ain","France"],
+  ["Bateaux du Saut-du-Doubs – Compagnie Droz-Bartholet","Villers-le-Lac","Doubs","France"],
+  ["Le Jardin des Cinq Sens","Yvoire","Haute-Savoie","France"],
+  ["Fort de Bard","Bard","Vallée d'Aoste","Italie"],
+  ["Domaine skiable – Espace San Bernardo","La Thuile / Aoste","Vallée d'Aoste","Italie"],
+  // --- Vaud ---
+  ["Château d'Aigle","Aigle","Vaud","Suisse"],
+  ["Jumpland Trampoline Park & Lazerland","Aigle","Vaud","Suisse"],
+  ["Axers – Lancer de hache","Bex / Crissier","Vaud","Suisse"],
+  ["Flying Devil – École professionnelle de parachutisme","Bex","Vaud","Suisse"],
+  ["Mines de sel de Bex","Bex","Vaud","Suisse"],
+  ["Chemin de fer – Musée Blonay-Chamby","Blonay","Vaud","Suisse"],
+  ["La Fabrique","Champagne","Vaud","Suisse"],
+  ["Vol en montgolfière","Château-d'Œx","Vaud","Suisse"],
+  ["As Warriors","Chavornay","Vaud","Suisse"],
+  ["Chaplin's World","Corsier-sur-Vevey","Vaud","Suisse"],
+  ["Familigolf et minigolf sur herbe de Cremin","Cremin","Vaud","Suisse"],
+  ["MSJ-Production","Crissier","Vaud","Suisse"],
+  ["Centre-nature Birdlife de La Sauge","Cudrefin","Vaud","Suisse"],
+  ["YAZOO Family Center","Etagnières","Vaud","Suisse"],
+  ["Kids Fun Park","Etoy","Vaud","Suisse"],
+  ["Mind Trap","Etoy","Vaud","Suisse"],
+  ["Centre Mondial du tir à l'arc – Initiation au tir à l'arc","Lausanne","Vaud","Suisse"],
+  ["Grimper.ch","Lausanne","Vaud","Suisse"],
+  ["Musée de la main – UNIL-CHUV","Lausanne","Vaud","Suisse"],
+  ["Le Musée Olympique","Lausanne","Vaud","Suisse"],
+  ["Opération Blackout","Lausanne","Vaud","Suisse"],
+  ["Orchestre de la Suisse Romande","Lausanne","Vaud","Suisse"],
+  ["Pieds dans l'Ô – Location de pédalos et bateaux sans permis","Lausanne","Vaud","Suisse"],
+  ["Swin golf Lavigny","Lavigny","Vaud","Suisse"],
+  ["Deep Turtle","Lonay","Vaud","Suisse"],
+  ["Lavaux Express","Lutry","Vaud","Suisse"],
+  ["Wakesharing","Lutry","Vaud","Suisse"],
+  ["Freddie Tours","Montreux","Vaud","Suisse"],
+  ["CityGolf et « Sur les traces du sifflet d'or »","Morges","Vaud","Suisse"],
+  ["Escape Center","Morges","Vaud","Suisse"],
+  ["Master Quiz","Morges","Vaud","Suisse"],
+  ["Parapente Air Center","Noville","Vaud","Suisse"],
+  ["Urba Kids","Orbe","Vaud","Suisse"],
+  ["Paintball ou Gellyball","Oulens-sous-Echallens","Vaud","Suisse"],
+  ["Abbatiale de Payerne","Payerne","Vaud","Suisse"],
+  ["Karting de Payerne & Payerneland Aventure","Payerne","Vaud","Suisse"],
+  ["Escape World & Escape Center","Prilly","Vaud","Suisse"],
+  ["Domaine skiable – Sainte-Croix/Les Rasses","Les Rasses","Vaud","Suisse"],
+  ["Nürburgring eSports","Roche","Vaud","Suisse"],
+  ["Espace Loisirs Basse-Ruche","Saint-Cergue","Vaud","Suisse"],
+  ["Centre Sportif Vallée de Joux","Le Sentier","Vaud","Suisse"],
+  ["Espace Horloger de la Vallée de Joux","Le Sentier","Vaud","Suisse"],
+  ["Tropiquarium de Servion","Servion","Vaud","Suisse"],
+  ["Zoo de Servion","Servion","Vaud","Suisse"],
+  ["Gecko Escalade","Sottens","Vaud","Suisse"],
+  ["Gecko Sensations – Ascension de l'antenne de Radio Sottens","Sottens","Vaud","Suisse"],
+  ["La Maison de la Rivière","Tolochenaz","Vaud","Suisse"],
+  ["Musée suisse du jeu","La Tour-de-Peilz","Vaud","Suisse"],
+  ["Grottes de Vallorbe","Vallorbe","Vaud","Suisse"],
+  ["Juraparc","Vallorbe","Vaud","Suisse"],
+  ["La Garenne","Le Vaud","Vaud","Suisse"],
+  ["Alimentarium – Musée de l'alimentation","Vevey","Vaud","Suisse"],
+  ["Musée suisse de l'appareil photographique","Vevey","Vaud","Suisse"],
+  ["Château de Chillon","Veytaux / Montreux","Vaud","Suisse"],
+  ["Fort de Chillon – Musée","Veytaux / Montreux","Vaud","Suisse"],
+  ["Golf Club Villars","Villars-sur-Ollon","Vaud","Suisse"],
+  ["Karting de Vuiteboeuf","Vuiteboeuf","Vaud","Suisse"],
+  ["Jumpark – Salle de loisirs indoor","Yverdon-les-Bains","Vaud","Suisse"],
+  ["Kindercity & Sciencity","Yverdon-les-Bains","Vaud","Suisse"],
+  ["Centre nautique Les Vikings","Yvonand","Vaud","Suisse"],
+  // --- Valais ---
+  ["Passeport Découverte d'Aletsch Arena","Aletsch Arena","Valais","Suisse"],
+  ["Anzère Spa & Wellness","Anzère","Valais","Suisse"],
+  ["Aquaparc","Le Bouveret","Valais","Suisse"],
+  ["Swiss Vapeur Parc","Le Bouveret","Valais","Suisse"],
+  ["Curling au Palladium de Champéry","Champéry","Valais","Suisse"],
+  ["Organic Adventure Park","Champéry","Valais","Suisse"],
+  ["Palladium de Champéry","Champéry","Valais","Suisse"],
+  ["Tyrolienne Woufline de la Breya","Champex-Lac","Valais","Suisse"],
+  ["Xstream Park Wavesurf, Bodyboard et Trampolines","Collombey-Muraz","Valais","Suisse"],
+  ["Fun Forest","Crans-Montana","Valais","Suisse"],
+  ["Rando Aventure","Crans-Montana","Valais","Suisse"],
+  ["Labyrinthe Aventure","Évionnaz","Valais","Suisse"],
+  ["Alp-Paintball","Evolène","Valais","Suisse"],
+  ["Alp-Trottinette","Evolène","Valais","Suisse"],
+  ["Tyrolienne EMOSSiONelle","Finhaut","Valais","Suisse"],
+  ["Happyland","Granges","Valais","Suisse"],
+  ["Les Grands Bains d'Hérémence","Hérémence","Valais","Suisse"],
+  ["Leukerbad Therme","Loèche-les-Bains","Valais","Suisse"],
+  ["Walliser Alpentherme","Loèche-les-Bains","Valais","Suisse"],
+  ["Zoo et piscine des Marécottes","Les Marécottes","Valais","Suisse"],
+  ["Bowland Espace Loisirs","Martigny","Valais","Suisse"],
+  ["Fondation Pierre Gianadda","Martigny","Valais","Suisse"],
+  ["Mont-Blanc Express","Martigny","Valais","Suisse"],
+  ["Quartz Fun Park","Martigny","Valais","Suisse"],
+  ["Western City","Martigny","Valais","Suisse"],
+  ["The Art of Gueguel","Monthey","Valais","Suisse"],
+  ["World Nature Forum","Naters","Valais","Suisse"],
+  ["Swin golf et foot golf Nax","Nax","Valais","Suisse"],
+  ["Ski au Pays du Saint-Bernard","Orsières","Valais","Suisse"],
+  ["Les Bains d'Ovronnaz","Ovronnaz","Valais","Suisse"],
+  ["Luge à Kreuzboden","Saas-Grund","Valais","Suisse"],
+  ["Les Bains de Saillon","Saillon","Valais","Suisse"],
+  ["Spa Cinq Mondes","Saillon","Valais","Suisse"],
+  ["Lac souterrain de Saint-Léonard","Saint-Léonard","Valais","Suisse"],
+  ["Escape World – Caveau du Diable & Mekalitopia","Sion / Saint-Maurice","Valais","Suisse"],
+  ["Kids Fun Park","Sion","Valais","Suisse"],
+  ["Parc Aventure Sion","Sion","Valais","Suisse"],
+  ["Planétarium","Sion","Valais","Suisse"],
+  ["Realfly","Sion","Valais","Suisse"],
+  ["Luge à Thyon 2000","Thyon","Valais","Suisse"],
+  ["Tir à l'arc et disc golf – Thyon 4 vallées","Thyon","Valais","Suisse"],
+  ["Domaine skiable – Espace Liberté","Torgon / La Chapelle-d'Abondance / Châtel","Valais","Suisse"],
+  ["École de parapente de Champoussin","Val-d'Illiez","Valais","Suisse"],
+  ["Luge à La Tzoumaz / Savoleyres","Verbier","Valais","Suisse"],
+  ["Escape World","Vernayaz","Valais","Suisse"],
+];
+
+function guessCategories(name){
+  const n = name.toLowerCase();
+  const cats = [];
+  const add = c => { if(!cats.includes(c)) cats.push(c); };
+  if(/mus[ée]e|fondation|citadelle|ch[âa]teau|fort d|fort de|abbatiale|planétarium/.test(n)) add('musee');
+  if(/rando|v[ée]lo|vtt|trottinette|balade(?! à poney)|sentier/.test(n)) add('rando');
+  if(/\blac\b|navigation|bateau|piscine|aquatique|nautique|baignade|wavesurf|bodyboard|canoë|kayak|p[ée]dalo|wakesharing/.test(n)) add('lac');
+  if(/parc aventure|accrobranche|escalade|grimper|arbal[eè]te|forest jump|jumpark|jumpland|trampoline/.test(n)) add('aventure');
+  if(/parapente|tyrolienne|montgolfi[èe]re|survol|airloop|fantasticable/.test(n)) add('aerien');
+  if(/\bspa\b|bains d|bains de|therme|alpentherme|bien-être|wellness/.test(n)) add('spa');
+  if(/\bzoo\b|animalier|huskys|poney|équestre|vachette|oiseaux|dino-zoo/.test(n)) add('zoo');
+  if(/luge|\bski\b|domaine skiable|raquettes/.test(n)) add('hiver');
+  if(/escape|laser|karting|paintball|gellyball|bowling|quiztrap|quiz|golf|circuit secret|western city|realfly|gameorama|game over|cube challenges|commando games|nürburgring|virtual room/.test(n)) add('insolite');
+  if(/train|city pass|funiculaire|open bus/.test(n)) add('ville');
+  if(!cats.length) add('culture');
+  return cats;
+}
+function guessSaisons(name){
+  const n = name.toLowerCase();
+  if(/luge|\bski\b|raquettes|domaine skiable/.test(n)) return ['hiver'];
+  return ['toute'];
+}
+function guessMeteo(cats){
+  const c = catById(cats[0]);
+  if(!c) return 'peu-importe';
+  if(c.weather==='outdoor') return 'beau';
+  if(c.weather==='indoor') return 'pluie';
+  return 'peu-importe';
+}
+
+/* ============================================================
+   ETAT
+   ============================================================ */
+const State = {
+  profile: null,
+  activities: [],
+  watchlistPerso: [],   // [{id, activityId, done, dateDone}]
+  watchlistCommune: [],
+  userPos: null,        // {lat,lng}
+  weather: null,        // {text,icon,state,temp}
+  filters: {cats:[], saisons:[], durees:[], lieu:'', reco:false},
+  map: null,
+  markers: {},          // activityId -> L.Marker
+  userMarker: null,
+  view: 'carte',
+  wlTab: 'perso',
+  pickingOnMap: false,
+  pendingLoc: null,     // {lat,lng} chosen for the form in progress
+  editingId: null,
+  geoResultsCache: [],
+  importing: false,
+  importDone: 0,
+  importTotal: 0,
+  importCancelled: false,
+  customMeteos: [],
+  customDurees: [],
+  customCategories: [],
+  addOptionKind: null,
+  mapSearchResults: [],
+  recipesIndex: [],
+  recipePhotos: [],
+  editingRecipeId: null,
+};
+
+/* ============================================================
+   STOCKAGE PERSISTANT (Firebase Realtime Database)
+   Le "profile" (prénom) reste sur cet appareil (localStorage) et sert de
+   clé pour ranger les données "personnelles" à part des données "communes".
+   ============================================================ */
+function myName(){ try{ return localStorage.getItem('carnetADeux_myName') || null; }catch(e){ return null; } }
+function setMyNameCache(name){ try{ localStorage.setItem('carnetADeux_myName', name||''); }catch(e){} }
+function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
+function fbPath(key, shared){
+  if(shared) return 'shared/'+key;
+  return 'personal/'+encodeKeyPart(myName()||'anonyme')+'/'+key;
+}
+async function storeGet(key, shared){
+  if(key==='profile' && !shared){
+    const n = myName();
+    return n ? {name:n} : null;
+  }
+  try{
+    const snap = await fbdb.ref(fbPath(key,shared)).once('value');
+    const val = snap.val();
+    return (val===null || val===undefined) ? null : val;
+  }catch(e){ return null; }
+}
+async function storeSet(key, value, shared){
+  if(key==='profile' && !shared){
+    setMyNameCache(value && value.name ? value.name : '');
+    return {key, value, shared};
+  }
+  try{
+    await fbdb.ref(fbPath(key,shared)).set(value===undefined ? null : value);
+    return {key, value, shared};
+  }catch(e){ showToast("Problème d'enregistrement, réessaie."); return null; }
+}
+async function storeDelete(key, shared){
+  try{ await fbdb.ref(fbPath(key,shared)).remove(); }catch(e){}
+}
+
+async function loadAll(){
+  const [profile, activities, wlPerso, wlCommune, customOptions, recipesIndex] = await Promise.all([
+    storeGet('profile', false),
+    storeGet('activities', true),
+    storeGet('watchlist-perso', false),
+    storeGet('watchlist-commune', true),
+    storeGet('custom-options', true),
+    storeGet('recipes-index', true),
+  ]);
+  State.profile = profile;
+  State.activities = activities || [];
+  State.watchlistPerso = wlPerso || [];
+  State.watchlistCommune = wlCommune || [];
+  State.customMeteos = (customOptions && customOptions.meteos) || [];
+  State.customDurees = (customOptions && customOptions.durees) || [];
+  State.customCategories = (customOptions && customOptions.categories) || [];
+  State.recipesIndex = recipesIndex || [];
+}
+
+/* ============================================================
+   UTILITAIRES
+   ============================================================ */
+function uid(){ return 'a_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function distKm(lat1,lon1,lat2,lon2){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function fmtDist(km){
+  if(km==null) return '';
+  return km<1 ? Math.round(km*1000)+' m' : km.toFixed(1)+' km';
+}
+function starsStr(rating){
+  const r = Math.round(rating||0);
+  return '★'.repeat(r)+'☆'.repeat(5-r);
+}
+function avgRating(activity){
+  if(!activity.reviews || !activity.reviews.length) return null;
+  return activity.reviews.reduce((s,r)=>s+r.rating,0)/activity.reviews.length;
+}
+// Rétro-compatible : anciennes fiches enregistrées avec un seul duree/meteo (texte),
+// nouvelles fiches avec plusieurs (tableau). On lit toujours via ces deux fonctions.
+function getDurees(a){ return a.durees || (a.duree ? [a.duree] : []); }
+function getMeteos(a){ return a.meteos || (a.meteo ? [a.meteo] : []); }
+function allDurees(){ return DUREES.concat(State.customDurees); }
+function allMeteos(){ return METEOS.concat(State.customMeteos); }
+function allCategories(){ return CATEGORIES.concat(State.customCategories); }
+function chip(container, item, selected, multi){
+  const b = document.createElement('button');
+  b.type='button'; b.className='chip'+(selected?' selected':'');
+  b.dataset.id = item.id;
+  b.innerHTML = item.emoji+' '+item.label;
+  container.appendChild(b);
+  return b;
+}
+function openSheet(id){ document.getElementById(id).classList.add('open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ============================================================
+   CARTE (Leaflet)
+   ============================================================ */
+function initMap(){
+  State.map = L.map('map', {zoomControl:false}).setView([46.8182,8.2275], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19, attribution:'© OpenStreetMap'
+  }).addTo(State.map);
+  L.control.zoom({position:'bottomleft'}).addTo(State.map);
+  State.clusterGroup = L.markerClusterGroup({
+    maxClusterRadius:50,
+    iconCreateFunction: function(cluster){
+      const count = cluster.getChildCount();
+      return L.divIcon({
+        html:'<div style="width:38px;height:38px;border-radius:50%;background:var(--paper-3);border:2px solid var(--trail);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;color:var(--trail-dark);box-shadow:1px 1px 0 rgba(31,46,35,.3);">'+count+'</div>',
+        className:'', iconSize:[38,38]
+      });
+    }
+  });
+  State.map.addLayer(State.clusterGroup);
+
+  State.map.on('click', (e)=>{
+    if(State.pickingOnMap){
+      setPendingLoc(e.latlng.lat, e.latlng.lng);
+      State.pickingOnMap = false;
+      document.getElementById('f-loc-map').textContent = '🗺️ Choisir un point sur la carte';
+      openSheet('sheet-form');
+    }
+  });
+}
+function pinIcon(cats, mine){
+  const emoji = cats && cats.length ? catById(cats[0]).emoji : '📌';
+  const rot = (Math.random()*10-5).toFixed(1);
+  return L.divIcon({
+    html:'<div class="pin'+(mine?' mine':'')+'" style="transform:rotate('+rot+'deg)">'+emoji+'</div>',
+    className:'', iconSize:[32,32], iconAnchor:[16,28], popupAnchor:[0,-26]
+  });
+}
+function renderMarkers(){
+  State.clusterGroup.clearLayers();
+  State.markers = {};
+  const list = filteredActivities();
+  const newMarkers = [];
+  list.forEach(a=>{
+    if(a.lat==null||a.lng==null) return;
+    const marker = L.marker([a.lat,a.lng], {icon: pinIcon(a.categories)});
+    marker.bindPopup(popupHtml(a));
+    marker.on('popupopen', ()=>wirePopup(a.id));
+    State.markers[a.id] = marker;
+    newMarkers.push(marker);
+  });
+  State.clusterGroup.addLayers(newMarkers);
+}
+function popupHtml(a){
+  const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
+  const dist = State.userPos ? fmtDist(distKm(State.userPos.lat,State.userPos.lng,a.lat,a.lng)) : '';
+  const avg = avgRating(a);
+  return '<div class="popup-cat">'+(cat?cat.emoji:'📌')+'</div>'+
+    '<div class="popup-title">'+escapeHtml(a.name)+'</div>'+
+    '<div class="popup-meta">'+(a.canton?escapeHtml(a.canton)+' · ':'')+(dist?dist:'')+'</div>'+
+    (avg?'<div class="stars">'+starsStr(avg)+'</div>':'<div class="hint" style="font-size:11px;color:var(--ink-faint)">Pas encore noté</div>')+
+    '<div class="popup-actions">'+
+      '<button data-act="detail" data-id="'+a.id+'">Détails</button>'+
+      '<button data-act="wlperso" data-id="'+a.id+'" class="primary">＋ Ma liste</button>'+
+    '</div>';
+}
+function wirePopup(id){
+  document.querySelectorAll('.leaflet-popup [data-act]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const aid = btn.dataset.id;
+      if(btn.dataset.act==='detail'){ State.map.closePopup(); openDetail(aid); }
+      if(btn.dataset.act==='wlperso'){ addToWatchlist(aid,'perso'); }
+    };
+  });
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+/* ============================================================
+   SAUVEGARDE / EXPORT
+   ============================================================ */
+async function exportBackup(){
+  const fullRecipes = (await Promise.all(State.recipesIndex.map(r=>storeGet('recipe:'+r.id, true)))).filter(Boolean);
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    profile: State.profile,
+    activities: State.activities,
+    watchlistPerso: State.watchlistPerso,
+    watchlistCommune: State.watchlistCommune,
+    customOptions: {meteos: State.customMeteos, durees: State.customDurees, categories: State.customCategories},
+    recipes: fullRecipes
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const filename = 'carnet-a-deux-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json';
+  const blob = new Blob([json], {type:'application/json'});
+
+  // Sur iPhone, on essaie d'abord d'ouvrir le vrai menu de partage (permet "Enregistrer dans Drive" directement)
+  try{
+    const file = new File([blob], filename, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'Sauvegarde Carnet à Deux'});
+      return;
+    }
+  }catch(e){ /* l'utilisateur a peut-être juste annulé le partage — pas une erreur */ }
+
+  // Solution de secours : téléchargement classique du fichier
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    showToast('Fichier téléchargé — ouvre "Fichiers" pour l\'enregistrer sur Drive ou iCloud.');
+  }catch(e){
+    showToast("Le téléchargement n'a pas fonctionné dans cette vue — réessaie en ouvrant l'appli dans Safari.");
+  }
+}
+async function importBackupFile(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    let data;
+    try{ data = JSON.parse(reader.result); }
+    catch(err){ showToast("Ce fichier ne ressemble pas à une sauvegarde valide."); return; }
+
+    let addedActivities = 0, addedRecipes = 0;
+    if(Array.isArray(data.activities)){
+      const existingIds = new Set(State.activities.map(a=>a.id));
+      const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
+      data.activities.forEach(a=>{
+        if(!existingIds.has(a.id) && !existingNames.has((a.name||'').trim().toLowerCase())){
+          State.activities.push(a); addedActivities++;
+        }
+      });
+      await storeSet('activities', State.activities, true);
+    }
+    if(Array.isArray(data.watchlistCommune)){
+      const existingIds = new Set(State.watchlistCommune.map(w=>w.id));
+      data.watchlistCommune.forEach(w=>{ if(!existingIds.has(w.id)) State.watchlistCommune.push(w); });
+      await storeSet('watchlist-commune', State.watchlistCommune, true);
+    }
+    if(Array.isArray(data.watchlistPerso)){
+      const existingIds = new Set(State.watchlistPerso.map(w=>w.id));
+      data.watchlistPerso.forEach(w=>{ if(!existingIds.has(w.id)) State.watchlistPerso.push(w); });
+      await storeSet('watchlist-perso', State.watchlistPerso, false);
+    }
+    if(data.customOptions){
+      (data.customOptions.meteos||[]).forEach(m=>{ if(!State.customMeteos.some(x=>x.id===m.id)) State.customMeteos.push(m); });
+      (data.customOptions.durees||[]).forEach(d=>{ if(!State.customDurees.some(x=>x.id===d.id)) State.customDurees.push(d); });
+      (data.customOptions.categories||[]).forEach(c=>{ if(!State.customCategories.some(x=>x.id===c.id)) State.customCategories.push(c); });
+      await storeSet('custom-options', {meteos:State.customMeteos, durees:State.customDurees, categories:State.customCategories}, true);
+    }
+    if(Array.isArray(data.recipes)){
+      for(const rec of data.recipes){
+        if(State.recipesIndex.some(x=>x.id===rec.id)) continue;
+        await storeSet('recipe:'+rec.id, rec, true);
+        const thumb = (rec.photos && rec.photos.length) ? await shrinkImage(rec.photos[0],160,0.55) : null;
+        State.recipesIndex.push({id:rec.id, title:rec.title, tags:rec.tags, author:rec.author, createdAt:rec.createdAt, thumb});
+        addedRecipes++;
+      }
+      await storeSet('recipes-index', State.recipesIndex, true);
+    }
+    renderAll();
+    showToast('Sauvegarde restaurée — '+addedActivities+' activité(s), '+addedRecipes+' recette(s) ajoutée(s).');
+  };
+  reader.onerror = ()=>showToast('Impossible de lire ce fichier.');
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+/* ============================================================
+   GEOLOCALISATION + METEO
+   ============================================================ */
+function locateUser(){
+  if(!navigator.geolocation){ showToast("Ton téléphone ne partage pas sa position ici."); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    State.userPos = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    placeUserMarker();
+    State.map.setView([State.userPos.lat, State.userPos.lng], 12);
+    fetchWeather(State.userPos.lat, State.userPos.lng);
+    renderRepertoire(); // pour mettre à jour les distances
+  }, err=>{
+    if(err.code===1){ // PERMISSION_DENIED
+      showToast("Position bloquée ici. Si tu es dans l'aperçu Claude, ouvre le lien publié (••• → Publier) — ça marche mieux en dehors de l'aperçu.");
+    } else {
+      showToast("Position non disponible — tu peux entrer les lieux manuellement.");
+    }
+  }, {enableHighAccuracy:true, timeout:8000});
+}
+function placeUserMarker(){
+  if(!State.userPos) return;
+  if(State.userMarker) State.map.removeLayer(State.userMarker);
+  const icon = L.divIcon({
+    html:'<div style="position:relative; width:18px; height:18px;"><div class="userdot-ring" style="position:absolute;"></div><div class="userdot" style="position:absolute;"></div></div>',
+    className:'', iconSize:[18,18], iconAnchor:[9,9]
+  });
+  State.userMarker = L.marker([State.userPos.lat, State.userPos.lng], {icon, zIndexOffset:1000}).addTo(State.map);
+  State.userMarker.bindPopup('Toi 📍');
+}
+async function fetchWeather(lat,lng){
+  const chipEl = document.getElementById('weather-chip');
+  try{
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lng+'&current=temperature_2m,weathercode&timezone=auto');
+    const data = await res.json();
+    const code = data.current.weathercode, temp = Math.round(data.current.temperature_2m);
+    State.weather = Object.assign({temp}, weatherFromCode(code));
+    chipEl.innerHTML = State.weather.icon+' <span class="t">'+State.weather.temp+'° · '+State.weather.text+'</span>';
+  }catch(e){
+    chipEl.innerHTML = '🌡️ <span class="t">Météo indisponible</span>';
+    State.weather = null;
+  }
+}
+function weatherFromCode(code){
+  if(code===0) return {text:'Ciel dégagé', icon:'☀️', state:'beau'};
+  if([1,2].includes(code)) return {text:'Plutôt ensoleillé', icon:'🌤️', state:'beau'};
+  if(code===3) return {text:'Nuageux', icon:'☁️', state:'peu-importe'};
+  if([45,48].includes(code)) return {text:'Brouillard', icon:'🌫️', state:'peu-importe'};
+  if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)) return {text:'Pluie', icon:'🌧️', state:'pluie'};
+  if([71,73,75,77,85,86].includes(code)) return {text:'Neige', icon:'❄️', state:'pluie'};
+  if([95,96,99].includes(code)) return {text:'Orage', icon:'⛈️', state:'pluie'};
+  return {text:'Météo incertaine', icon:'🌡️', state:'peu-importe'};
+}
+
+/* ============================================================
+   IMPORT AUTOMATIQUE DU GUIDE (première ouverture seulement)
+   ============================================================ */
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+async function geocodeOne(ville, canton, pays){
+  const q = ville.split(' / ')[0].split(',')[0] + ', ' + canton.replace(' (FR)','') + ', ' + pays;
+  try{
+    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));
+    const data = await res.json();
+    if(data && data[0]) return {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
+  }catch(e){ /* silencieux, on retentera pas */ }
+  return null;
+}
+function updateImportBanner(){
+  const el = document.getElementById('import-banner');
+  if(!State.importing){ el.style.display='none'; return; }
+  el.style.display='block';
+  const pct = State.importTotal ? Math.round(State.importDone/State.importTotal*100) : 0;
+  el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
+      '<span>📍 Ajout de lieux du guide… ('+State.importDone+'/'+State.importTotal+')</span>'+
+      '<button id="import-dismiss" style="background:none;border:none;color:var(--paper-3);font-size:17px;padding:2px 4px;flex:0 0 auto;">✕</button>'+
+    '</div>'+
+    '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>';
+  document.getElementById('import-dismiss').onclick = ()=>{ State.importCancelled = true; State.importing = false; updateImportBanner(); };
+}
+async function importSeedIfNeeded(){
+  // Import "intelligent" : on ne traite que les lieux du guide qui ne sont pas déjà
+  // enregistrés (comparaison par nom). Comme ça, même si ça tourne plusieurs fois,
+  // ça ne crée jamais de doublons et ça ne refait jamais le travail déjà fait.
+  const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
+  const missing = SEED_ACTIVITIES.filter(([name])=>!existingNames.has(name.trim().toLowerCase()));
+  if(!missing.length) return; // tout y est déjà, rien à faire
+
+  State.importing = true;
+  State.importCancelled = false;
+  State.importTotal = missing.length;
+  State.importDone = 0;
+  updateImportBanner();
+  let batch = [];
+  for(const [name, ville, canton, pays] of missing){
+    if(State.importCancelled) break;
+    const loc = await geocodeOne(ville, canton, pays);
+    if(loc){
+      const cats = guessCategories(name);
+      batch.push({
+        id: uid(), name, lat:loc.lat, lng:loc.lng, categories:cats,
+        saisons: guessSaisons(name), durees:['demi'], meteos:[guessMeteo(cats)],
+        canton: canton+(pays!=='Suisse'?(' — '+pays):''), notes:'',
+        addedBy:'Import du guide', createdAt: Date.now(), reviews: []
+      });
+    }
+    State.importDone++;
+    updateImportBanner();
+    if(batch.length>=15){
+      State.activities = State.activities.concat(batch);
+      await storeSet('activities', State.activities, true);
+      renderAll();
+      batch = [];
+    }
+    await sleep(1100); // on respecte la limite d'1 requête/seconde du service de géocodage
+  }
+  if(batch.length){
+    State.activities = State.activities.concat(batch);
+    await storeSet('activities', State.activities, true);
+  }
+  State.importing = false;
+  updateImportBanner();
+  renderAll();
+  if(!State.importCancelled) showToast('Import terminé — '+State.activities.length+' lieux sur la carte ✓');
+}
+
+/* ============================================================
+   FILTRES
+   ============================================================ */
+function buildFilterChips(){
+  const catsC = document.getElementById('filter-cats'); catsC.innerHTML='';
+  allCategories().forEach(c=>{
+    const b = chip(catsC, c, State.filters.cats.includes(c.id));
+    b.onclick = ()=>{ toggleIn(State.filters.cats, c.id); b.classList.toggle('selected'); };
+  });
+  const saisC = document.getElementById('filter-saisons'); saisC.innerHTML='';
+  SAISONS.forEach(s=>{
+    const b = chip(saisC, s, State.filters.saisons.includes(s.id));
+    b.onclick = ()=>{ toggleIn(State.filters.saisons, s.id); b.classList.toggle('selected'); };
+  });
+  const durC = document.getElementById('filter-durees'); durC.innerHTML='';
+  allDurees().forEach(d=>{
+    const b = chip(durC, d, State.filters.durees.includes(d.id));
+    b.onclick = ()=>{ toggleIn(State.filters.durees, d.id); b.classList.toggle('selected'); };
+  });
+  document.getElementById('filter-lieu').value = State.filters.lieu;
+  document.getElementById('map-search').value = State.filters.lieu;
+  const recoBtn = document.getElementById('btn-reco-toggle');
+  recoBtn.classList.toggle('selected', State.filters.reco);
+  recoBtn.textContent = State.filters.reco ? '🌤️ Suggestion météo activée' : '🌤️ Activer la suggestion météo';
+}
+function toggleIn(arr,val){ const i=arr.indexOf(val); if(i>=0) arr.splice(i,1); else arr.push(val); }
+function filteredActivities(){
+  const f = State.filters;
+  return State.activities.filter(a=>{
+    if(f.cats.length && !a.categories.some(c=>f.cats.includes(c))) return false;
+    if(f.saisons.length && !a.saisons.some(s=>f.saisons.includes(s))) return false;
+    if(f.durees.length && !getDurees(a).some(d=>f.durees.includes(d))) return false;
+    if(f.lieu && !((a.canton||'')+' '+(a.name||'')).toLowerCase().includes(f.lieu.toLowerCase())) return false;
+    if(f.reco && State.weather){
+      const w = State.weather.state; // beau / pluie / peu-importe
+      if(w!=='peu-importe'){
+        const okAny = a.categories.some(cid=>{
+          const cat = catById(cid);
+          if(!cat) return false;
+          if(cat.weather==='any') return true;
+          if(w==='beau') return cat.weather==='outdoor';
+          if(w==='pluie') return cat.weather==='indoor';
+          return true;
+        });
+        if(!okAny) return false;
+      }
+    }
+    return true;
+  });
+}
+function hasActiveFilters(){
+  const f = State.filters;
+  return f.cats.length || f.saisons.length || f.durees.length || f.lieu || f.reco;
+}
+function refreshFilterButtons(){
+  const on = hasActiveFilters();
+  document.getElementById('btn-open-filters').classList.toggle('has-filters', on);
+  document.getElementById('btn-open-filters-2').classList.toggle('has-filters', on);
+  document.getElementById('btn-open-filters-map').classList.toggle('has-filters', on);
+}
+
+/* ============================================================
+   RÉPERTOIRE
+   ============================================================ */
+function renderRepertoire(){
+  const box = document.getElementById('repertoire-list');
+  const q = (document.getElementById('search-input').value||'').toLowerCase();
+  let list = filteredActivities().filter(a=>{
+    if(!q) return true;
+    return (a.name||'').toLowerCase().includes(q) || (a.canton||'').toLowerCase().includes(q);
+  });
+  if(State.userPos){
+    list = list.slice().sort((a,b)=>{
+      const da = distKm(State.userPos.lat,State.userPos.lng,a.lat,a.lng);
+      const db = distKm(State.userPos.lat,State.userPos.lng,b.lat,b.lng);
+      return da-db;
+    });
+  }
+  box.innerHTML='';
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">📖</span>Aucune activité ne correspond.<br>Ajoutez-en une avec le bouton ＋.</div>';
+    return;
+  }
+  list.forEach(a=>{
+    const row = document.createElement('div');
+    row.className='activity-row';
+    const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
+    const avg = avgRating(a);
+    const dist = State.userPos ? fmtDist(distKm(State.userPos.lat,State.userPos.lng,a.lat,a.lng)) : null;
+    row.innerHTML = '<div class="cat-badge">'+(cat?cat.emoji:'📌')+'</div>'+
+      '<div class="info">'+
+        '<p class="name">'+escapeHtml(a.name)+'</p>'+
+        '<div class="meta">'+
+          (a.canton?'<span>'+escapeHtml(a.canton)+'</span>':'')+
+          (avg?'<span class="stars">'+starsStr(avg)+'</span>':'<span>Pas encore noté</span>')+
+          (dist?'<span class="dist-tag">'+dist+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      '<button class="quick-add" data-id="'+a.id+'" title="Ajouter à notre liste">＋</button>';
+    row.querySelector('.info').onclick = ()=>openDetail(a.id);
+    row.querySelector('.cat-badge').onclick = ()=>openDetail(a.id);
+    row.querySelector('.quick-add').onclick = (ev)=>{ ev.stopPropagation(); addToWatchlist(a.id,'commune'); };
+    box.appendChild(row);
+  });
+}
+
+/* ============================================================
+   WATCHLISTS
+   ============================================================ */
+function addToWatchlist(activityId, which){
+  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
+  if(list.some(x=>x.activityId===activityId)){
+    showToast('Déjà dans '+(which==='perso'?'ta liste':'la liste commune')+'.');
+    return;
+  }
+  list.push({id:uid(), activityId, done:false, dateDone:null, addedAt:Date.now()});
+  if(which==='perso') storeSet('watchlist-perso', State.watchlistPerso, false);
+  else storeSet('watchlist-commune', State.watchlistCommune, true);
+  showToast('Ajouté à '+(which==='perso'?'ta liste':'la liste commune')+' ✓');
+  renderWatchlist();
+}
+function toggleDone(which, entryId){
+  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
+  const e = list.find(x=>x.id===entryId);
+  if(!e) return;
+  e.done = !e.done;
+  e.dateDone = e.done ? Date.now() : null;
+  if(which==='perso') storeSet('watchlist-perso', State.watchlistPerso, false);
+  else storeSet('watchlist-commune', State.watchlistCommune, true);
+  renderWatchlist();
+}
+function removeFromWatchlist(which, entryId){
+  if(which==='perso'){ State.watchlistPerso = State.watchlistPerso.filter(x=>x.id!==entryId); storeSet('watchlist-perso', State.watchlistPerso, false); }
+  else{ State.watchlistCommune = State.watchlistCommune.filter(x=>x.id!==entryId); storeSet('watchlist-commune', State.watchlistCommune, true); }
+  renderWatchlist();
+}
+function renderWatchlist(){
+  const box = document.getElementById('watchlist-list');
+  const which = State.wlTab;
+  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
+  box.innerHTML='';
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">✦</span>Rien ici pour l\'instant.<br>Épingle une activité depuis la carte ou le répertoire.</div>';
+    return;
+  }
+  const sorted = list.slice().sort((a,b)=> (a.done - b.done) || (b.addedAt - a.addedAt));
+  sorted.forEach(entry=>{
+    const a = State.activities.find(x=>x.id===entry.activityId);
+    if(!a) return;
+    const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
+    const row = document.createElement('div');
+    row.className='activity-row';
+    row.innerHTML = '<div class="cat-badge">'+(cat?cat.emoji:'📌')+'</div>'+
+      '<div class="info" style="cursor:pointer;">'+
+        '<p class="name" style="'+(entry.done?'text-decoration:line-through;color:var(--ink-faint);':'')+'">'+escapeHtml(a.name)+'</p>'+
+        '<div class="meta">'+(a.canton?escapeHtml(a.canton):'')+(entry.done?' · fait ✓':'')+'</div>'+
+      '</div>'+
+      '<div class="check-row">'+
+        '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'">'+(entry.done?'✓':'')+'</button>'+
+        '<button class="remove-x" data-remove="'+entry.id+'">✕</button>'+
+      '</div>';
+    row.querySelector('.info').onclick = ()=>openDetail(a.id);
+    row.querySelector('[data-toggle]').onclick = (ev)=>{ ev.stopPropagation(); toggleDone(which, entry.id); };
+    row.querySelector('[data-remove]').onclick = (ev)=>{ ev.stopPropagation(); removeFromWatchlist(which, entry.id); };
+    box.appendChild(row);
+  });
+}
+
+/* ============================================================
+   DÉTAIL D'UNE ACTIVITÉ
+   ============================================================ */
+function openDetail(id){
+  const a = State.activities.find(x=>x.id===id);
+  if(!a) return;
+  const box = document.getElementById('detail-body');
+  const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
+  const avg = avgRating(a);
+  const dist = State.userPos ? fmtDist(distKm(State.userPos.lat,State.userPos.lng,a.lat,a.lng)) : null;
+
+  let html = '<div class="detail-hero"><div class="cat-badge">'+(cat?cat.emoji:'📌')+'</div><div>'+
+    '<h2>'+escapeHtml(a.name)+'</h2>'+
+    '<div class="meta">'+(a.canton?escapeHtml(a.canton):'Lieu non précisé')+(dist?' · '+dist:'')+'</div>'+
+    (avg?'<div class="stars">'+starsStr(avg)+' ('+a.reviews.length+')</div>':'<div class="hint" style="color:var(--ink-faint);font-size:12px;">Pas encore noté</div>')+
+    '</div></div>';
+
+  html += '<div class="tag-row">';
+  (a.categories||[]).forEach(cid=>{ const c=catById(cid); if(c) html+='<span class="tag">'+c.emoji+' '+c.label+'</span>'; });
+  (a.saisons||[]).forEach(sid=>{ const s=SAISONS.find(x=>x.id===sid); if(s) html+='<span class="tag">'+s.emoji+' '+s.label+'</span>'; });
+  getDurees(a).forEach(id=>{ const d=allDurees().find(x=>x.id===id); if(d) html+='<span class="tag">'+d.emoji+' '+d.label+'</span>'; });
+  getMeteos(a).forEach(id=>{ const m=allMeteos().find(x=>x.id===id); if(m) html+='<span class="tag">'+m.emoji+' '+m.label+'</span>'; });
+  html += '</div>';
+
+  if(a.notes) html += '<div class="note-block">'+escapeHtml(a.notes)+'</div>';
+  html += '<div class="hint" style="margin-bottom:10px;">Ajouté par '+escapeHtml(a.addedBy||'quelqu\'un')+'</div>';
+
+  html += '<div class="btn-row">'+
+    '<button class="btn" id="det-add-perso">＋ Ma liste</button>'+
+    '<button class="btn" id="det-add-commune">＋ Notre liste</button>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn ghost" id="det-edit" style="flex:1;">Modifier ce lieu</button></div>';
+
+  html += '<h3 style="font-size:15px;margin:18px 0 4px;">Avis</h3>';
+  (a.reviews||[]).slice().reverse().forEach(r=>{
+    html += '<div class="review"><div class="who">'+escapeHtml(r.author)+' · <span class="stars">'+starsStr(r.rating)+'</span></div>'+
+      '<div class="when">'+new Date(r.date).toLocaleDateString('fr-CH')+'</div><p>'+escapeHtml(r.text||'')+'</p></div>';
+  });
+  html += '<div class="field" style="margin-top:14px;"><label>Laisser un avis</label>'+
+    '<div class="rating-input" id="rev-stars">'+[1,2,3,4,5].map(n=>'<span data-n="'+n+'">★</span>').join('')+'</div>'+
+    '<textarea id="rev-text" placeholder="Ton avis (optionnel)" style="margin-top:8px;"></textarea>'+
+    '<button class="btn primary" id="rev-save" style="width:100%;margin-top:8px;">Publier l\'avis</button></div>';
+
+  box.innerHTML = html;
+  let chosenStars = 0;
+  box.querySelectorAll('#rev-stars span').forEach(s=>{
+    s.onclick = ()=>{ chosenStars = parseInt(s.dataset.n,10); box.querySelectorAll('#rev-stars span').forEach(x=>x.classList.toggle('on', parseInt(x.dataset.n,10)<=chosenStars)); };
+  });
+  box.querySelector('#det-add-perso').onclick = ()=>addToWatchlist(a.id,'perso');
+  box.querySelector('#det-add-commune').onclick = ()=>addToWatchlist(a.id,'commune');
+  box.querySelector('#det-edit').onclick = ()=>{ closeSheet('sheet-detail'); openForm(a.id); };
+  box.querySelector('#rev-save').onclick = ()=>{
+    if(!chosenStars){ showToast('Choisis une note pour publier.'); return; }
+    a.reviews = a.reviews || [];
+    a.reviews.push({author: (State.profile&&State.profile.name)||'Anonyme', rating:chosenStars, text: box.querySelector('#rev-text').value.trim(), date: Date.now()});
+    storeSet('activities', State.activities, true);
+    showToast('Avis publié ✓');
+    closeSheet('sheet-detail');
+    renderAll();
+  };
+
+  openSheet('sheet-detail');
+}
+
+/* ============================================================
+   FORMULAIRE AJOUT / ÉDITION
+   ============================================================ */
+function buildFormChips(){
+  const c = document.getElementById('f-cats'); c.innerHTML='';
+  const s = document.getElementById('f-saisons'); s.innerHTML='';
+  const d = document.getElementById('f-durees'); d.innerHTML='';
+  const m = document.getElementById('f-meteos'); m.innerHTML='';
+  CATEGORIES.concat(State.customCategories).forEach(cat=>{ const b=chip(c,cat,false); b.onclick=()=>b.classList.toggle('selected'); });
+  SAISONS.forEach(sa=>{ const b=chip(s,sa,false); b.onclick=()=>b.classList.toggle('selected'); });
+  allDurees().forEach(du=>{ const b=chip(d,du,false); b.onclick=()=>b.classList.toggle('selected'); });
+  allMeteos().forEach(me=>{ const b=chip(m,me,false); b.onclick=()=>b.classList.toggle('selected'); });
+  addNewOptionChip(c,'categorie');
+  addNewOptionChip(d,'duree');
+  addNewOptionChip(m,'meteo');
+}
+const OPTION_KINDS = {
+  categorie: {title:'Nouvelle catégorie', field:'f-cats', store:'customCategories', defaultEmoji:'🏷️'},
+  duree:     {title:'Nouveau temps nécessaire', field:'f-durees', store:'customDurees', defaultEmoji:'🕐'},
+  meteo:     {title:'Nouvelle option météo', field:'f-meteos', store:'customMeteos', defaultEmoji:'🌡️'},
+};
+function addNewOptionChip(container, kind){
+  const b = document.createElement('button');
+  b.type='button'; b.className='chip new-option-chip';
+  b.innerHTML = '➕ Autre…';
+  b.onclick = ()=>openAddOptionSheet(kind);
+  container.appendChild(b);
+}
+function openAddOptionSheet(kind){
+  State.addOptionKind = kind;
+  document.getElementById('opt-sheet-title').textContent = OPTION_KINDS[kind].title;
+  document.getElementById('opt-emoji').value='';
+  document.getElementById('opt-label').value='';
+  openSheet('sheet-add-option');
+  setTimeout(()=>document.getElementById('opt-label').focus(), 250);
+}
+async function saveNewOption(){
+  const label = document.getElementById('opt-label').value.trim();
+  if(!label){ showToast('Donne un nom à cette option.'); return; }
+  const conf = OPTION_KINDS[State.addOptionKind];
+  const emoji = document.getElementById('opt-emoji').value.trim() || conf.defaultEmoji;
+  const id = 'custom_'+label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')+'_'+Date.now().toString(36).slice(-4);
+  const entry = {id, label, emoji, weather:'any'}; // "weather" n'est utile que pour les catégories (suggestion météo), ignoré ailleurs
+  State[conf.store].push(entry);
+  await storeSet('custom-options', {meteos: State.customMeteos, durees: State.customDurees, categories: State.customCategories}, true);
+  closeSheet('sheet-add-option');
+  buildFormChips();
+  // On sélectionne directement la nouvelle option, puisque c'est pour ça qu'on vient de l'ajouter.
+  const sel = document.querySelector('#'+conf.field+' .chip[data-id="'+id+'"]');
+  if(sel) sel.classList.add('selected');
+  showToast('Option "'+label+'" ajoutée ✓');
+}
+function setPendingLoc(lat,lng, label){
+  State.pendingLoc = {lat,lng};
+  document.getElementById('f-loc-status').textContent = '📍 Emplacement défini'+(label?' — '+label:'')+' ('+lat.toFixed(4)+', '+lng.toFixed(4)+')';
+  document.getElementById('f-loc-current').classList.toggle('set', true);
+}
+// Essaie d'extraire une latitude/longitude d'un texte : lien Google Maps (long ou avec !3d!4d/@/q=/ll=)
+// ou simplement une paire de nombres collée telle quelle.
+function parseCoordsOrGoogleUrl(text){
+  if(!text) return null;
+  const t = text.trim();
+  // Point exact d'un repère Google Maps (le plus précis quand présent)
+  let m = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
+  // Coordonnées après q= ou ll=
+  m = t.match(/[?&](?:q|ll)=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
+  // Centre de la vue dans l'URL (après @)
+  m = t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
+  // Simple paire "46.519, 6.632" collée directement
+  m = t.match(/(-?\d{1,3}\.\d{3,})\s*[,;\s]\s*(-?\d{1,3}\.\d{3,})/);
+  if(m){
+    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+    if(Math.abs(lat)<=90 && Math.abs(lng)<=180) return {lat, lng};
+  }
+  return null;
+}
+// Remplit automatiquement canton/ville à partir de coordonnées (facultatif, n'empêche jamais l'enregistrement)
+async function reverseGeocodeFillCanton(lat,lng){
+  const cantonField = document.getElementById('f-canton');
+  if(cantonField.value.trim()) return; // on ne touche pas à ce que la personne a déjà tapé
+  try{
+    const res = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat='+lat+'&lon='+lng);
+    const data = await res.json();
+    const addr = (data && data.address) || {};
+    const canton = addr.state || addr.county || '';
+    const ville = addr.city || addr.town || addr.village || '';
+    const val = [canton, ville].filter(Boolean).join(' — ');
+    if(val && !cantonField.value.trim()) cantonField.value = val;
+  }catch(e){ /* pas grave, la personne peut taper le canton à la main */ }
+}
+async function handleGmapsInput(silent){
+  const raw = document.getElementById('f-loc-gmaps').value.trim();
+  const openBtn = document.getElementById('f-loc-gmaps-openlink');
+  const coords = parseCoordsOrGoogleUrl(raw);
+  if(coords){
+    openBtn.style.display='none';
+    setPendingLoc(coords.lat, coords.lng, 'Google Maps');
+    showToast('Emplacement défini depuis Google Maps ✓');
+    reverseGeocodeFillCanton(coords.lat, coords.lng);
+    return;
+  }
+  if(/maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\//i.test(raw)){
+    openBtn.style.display='block';
+    openBtn.dataset.url = raw;
+    if(!silent) showToast('Ce lien est raccourci — touche "Ouvrir ce lien" ci-dessous.');
+    return;
+  }
+  openBtn.style.display='none';
+  if(!silent) showToast("Coordonnées introuvables — utilise plutôt Latitude/Longitude ci-dessus, ou choisis sur la carte.");
+}
+// Géocodage direct d'un texte libre (utilisé en filet de sécurité à l'enregistrement,
+// quand l'adresse a été tapée mais qu'aucune suggestion n'a été choisie).
+async function geocodeFreeText(q){
+  const withCountry = /suisse|switzerland|france|italie|italy/i.test(q) ? q : q+', Suisse';
+  try{
+    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(withCountry));
+    const data = await res.json();
+    if(data && data[0]) return {lat:parseFloat(data[0].lat), lng:parseFloat(data[0].lon)};
+  }catch(e){ /* on retombera sur le message d'erreur normal */ }
+  return null;
+}
+async function geocodeSearch(q){
+  const box = document.getElementById('f-geo-results');
+  if(!q || q.length<3){ box.style.display='none'; return; }
+  try{
+    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q='+encodeURIComponent(q));
+    const data = await res.json();
+    State.geoResultsCache = data;
+    if(!data.length){ box.style.display='none'; return; }
+    box.innerHTML = data.map((r,i)=>'<button data-i="'+i+'">'+escapeHtml(r.display_name)+'</button>').join('');
+    box.style.display='block';
+    box.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = ()=>{
+        const r = State.geoResultsCache[parseInt(btn.dataset.i,10)];
+        setPendingLoc(parseFloat(r.lat), parseFloat(r.lon), r.display_name.split(',')[0]);
+        const addr = r.address||{};
+        const canton = addr.state || addr.county || '';
+        const ville = addr.city || addr.town || addr.village || '';
+        document.getElementById('f-canton').value = [canton,ville].filter(Boolean).join(' — ');
+        box.style.display='none';
+        document.getElementById('f-loc-search').value = r.display_name.split(',')[0];
+      };
+    });
+  }catch(e){ box.style.display='none'; showToast('Recherche indisponible, réessaie ou choisis sur la carte.'); }
+}
+let geoDebounce;
+
+/* ============================================================
+   RECHERCHE + AJOUT RAPIDE DIRECTEMENT DEPUIS LA CARTE
+   ============================================================ */
+async function searchNewPlaces(q){
+  const box = document.getElementById('map-search-results');
+  const query = (q||'').trim();
+  if(query.length<3){ box.style.display='none'; box.innerHTML=''; return; }
+  try{
+    let res = await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=4&q='+encodeURIComponent(query+', Suisse'));
+    let data = await res.json();
+    if(!data.length){
+      res = await fetch('https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=4&q='+encodeURIComponent(query));
+      data = await res.json();
+    }
+    State.mapSearchResults = data;
+    if(!data.length){ box.style.display='none'; box.innerHTML=''; return; }
+    box.innerHTML = data.map((r,i)=>'<button data-i="'+i+'">➕ '+escapeHtml(r.display_name.split(',').slice(0,2).join(', '))+'</button>').join('');
+    box.style.display='block';
+    box.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = ()=>quickAddFromResult(State.mapSearchResults[parseInt(btn.dataset.i,10)]);
+    });
+  }catch(e){ box.style.display='none'; }
+}
+function categoryFromNominatimType(r){
+  const type = (r.type||'').toLowerCase();
+  const map = {
+    museum:'musee', gallery:'musee', memorial:'musee', monument:'musee', castle:'musee', ruins:'musee', archaeological_site:'musee',
+    restaurant:'resto', fast_food:'resto', food_court:'resto',
+    cafe:'cafe', bar:'cafe', pub:'cafe', biergarten:'cafe',
+    cinema:'culture', theatre:'culture', arts_centre:'culture', gallery_art:'culture',
+    park:'parc', garden:'parc', nature_reserve:'parc', forest:'parc', wood:'parc',
+    zoo:'zoo', aquarium:'zoo', animal_shelter:'zoo',
+    spa:'spa', bath_house:'spa',
+    swimming_pool:'lac', beach:'lac', water:'lac', lake:'lac', river:'lac',
+    supermarket:'shopping', mall:'shopping', department_store:'shopping',
+    viewpoint:'rando', trailhead:'rando',
+    ski:'hiver', piste:'hiver', sports_centre:'sport', stadium:'sport', golf_course:'sport',
+    attraction:'insolite', amusement_arcade:'insolite', escape_game:'insolite',
+  };
+  if(map[type]) return [map[type]];
+  return null; // pas de correspondance directe -> on retombera sur la déduction par le nom
+}
+function quickAddFromResult(r){
+  document.getElementById('map-search-results').style.display='none';
+  document.getElementById('map-search').value='';
+  State.filters.lieu=''; renderMarkers(); renderRepertoire(); refreshFilterButtons();
+  const addr = r.address||{};
+  const canton = addr.state || addr.county || '';
+  const ville = addr.city || addr.town || addr.village || '';
+  const name = r.display_name.split(',')[0];
+
+  openForm(null); // ouvre le formulaire vierge, prêt à être complété
+  setPendingLoc(parseFloat(r.lat), parseFloat(r.lon), name);
+  document.getElementById('f-canton').value = [canton,ville].filter(Boolean).join(' — ');
+  document.getElementById('f-name').value = name;
+
+  // Une catégorie de départ est suggérée (pré-cochée) mais reste librement modifiable
+  const cats = categoryFromNominatimType(r) || guessCategories(name);
+  cats.forEach(cid=>{
+    const b = document.querySelector('#f-cats .chip[data-id="'+cid+'"]');
+    if(b) b.classList.add('selected');
+  });
+
+  showToast('Position et nom déjà enregistrés — complète le style et le reste, puis "Enregistrer".');
+}
+function openForm(editId){
+  State.editingId = editId || null;
+  buildFormChips();
+  const title = document.getElementById('form-title');
+  const delBtn = document.getElementById('btn-delete-activity');
+  document.getElementById('f-geo-results').style.display='none';
+  document.getElementById('f-loc-current').classList.remove('set');
+  document.getElementById('f-loc-gmaps').value='';
+  document.getElementById('f-loc-gmaps-openlink').style.display='none';
+
+  if(editId){
+    const a = State.activities.find(x=>x.id===editId);
+    title.textContent = 'Modifier ce lieu';
+    delBtn.style.display='block';
+    document.getElementById('f-name').value = a.name||'';
+    document.getElementById('f-canton').value = a.canton||'';
+    document.getElementById('f-notes').value = a.notes||'';
+    document.getElementById('f-loc-search').value='';
+    if(a.lat!=null){ setPendingLoc(a.lat,a.lng); document.getElementById('f-lat').value=a.lat; document.getElementById('f-lng').value=a.lng; }
+    else{ document.getElementById('f-lat').value=''; document.getElementById('f-lng').value=''; }
+    (a.categories||[]).forEach(id=>{ const b=document.querySelector('#f-cats .chip[data-id="'+id+'"]'); if(b) b.classList.add('selected'); });
+    (a.saisons||[]).forEach(id=>{ const b=document.querySelector('#f-saisons .chip[data-id="'+id+'"]'); if(b) b.classList.add('selected'); });
+    getDurees(a).forEach(id=>{ const b=document.querySelector('#f-durees .chip[data-id="'+id+'"]'); if(b) b.classList.add('selected'); });
+    getMeteos(a).forEach(id=>{ const b=document.querySelector('#f-meteos .chip[data-id="'+id+'"]'); if(b) b.classList.add('selected'); });
+  }else{
+    title.textContent = 'Nouvelle activité';
+    delBtn.style.display='none';
+    document.getElementById('f-name').value='';
+    document.getElementById('f-canton').value='';
+    document.getElementById('f-notes').value='';
+    document.getElementById('f-loc-search').value='';
+    document.getElementById('f-lat').value='';
+    document.getElementById('f-lng').value='';
+    document.getElementById('f-loc-status').textContent='Aucun emplacement défini pour l\'instant.';
+    State.pendingLoc = null;
+  }
+  openSheet('sheet-form');
+}
+async function saveActivityFromForm(){
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ showToast('Donne un nom à cette activité.'); return; }
+  const saveBtn = document.getElementById('btn-save-activity');
+  let loc = State.pendingLoc || (State.editingId ? (()=>{ const a=State.activities.find(x=>x.id===State.editingId); return a && a.lat!=null ? {lat:a.lat,lng:a.lng} : null; })() : null);
+
+  // Filet de sécurité : si aucun lieu n'a été validé mais qu'une adresse est tapée,
+  // on tente de la localiser automatiquement avant d'abandonner.
+  if(!loc){
+    const q = document.getElementById('f-loc-search').value.trim();
+    if(q.length>=3){
+      const original = saveBtn.textContent;
+      saveBtn.textContent = 'Recherche du lieu…'; saveBtn.disabled = true;
+      loc = await geocodeFreeText(q);
+      saveBtn.textContent = original; saveBtn.disabled = false;
+      if(loc) setPendingLoc(loc.lat, loc.lng, q);
+    }
+  }
+  if(!loc){ showToast('Lieu introuvable — essaie "Choisir sur la carte" ou une adresse plus précise.'); return; }
+
+  const cats = Array.from(document.querySelectorAll('#f-cats .chip.selected')).map(b=>b.dataset.id);
+  const saisons = Array.from(document.querySelectorAll('#f-saisons .chip.selected')).map(b=>b.dataset.id);
+  const durees = Array.from(document.querySelectorAll('#f-durees .chip.selected')).map(b=>b.dataset.id);
+  const meteos = Array.from(document.querySelectorAll('#f-meteos .chip.selected')).map(b=>b.dataset.id);
+  const canton = document.getElementById('f-canton').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+
+  if(State.editingId){
+    const a = State.activities.find(x=>x.id===State.editingId);
+    Object.assign(a, {name, lat:loc.lat, lng:loc.lng, categories:cats, saisons, durees, meteos, canton, notes});
+    delete a.duree; delete a.meteo; // on migre la fiche vers le nouveau format tableau
+  }else{
+    State.activities.push({
+      id: uid(), name, lat:loc.lat, lng:loc.lng, categories:cats, saisons, durees, meteos,
+      canton, notes, addedBy: (State.profile&&State.profile.name)||'Anonyme', createdAt: Date.now(), reviews: []
+    });
+  }
+  storeSet('activities', State.activities, true);
+  closeSheet('sheet-form');
+  showToast('Enregistré ✓');
+  renderAll();
+}
+function deleteActivity(){
+  if(!State.editingId) return;
+  State.activities = State.activities.filter(x=>x.id!==State.editingId);
+  State.watchlistPerso = State.watchlistPerso.filter(x=>x.activityId!==State.editingId);
+  State.watchlistCommune = State.watchlistCommune.filter(x=>x.activityId!==State.editingId);
+  storeSet('activities', State.activities, true);
+  storeSet('watchlist-perso', State.watchlistPerso, false);
+  storeSet('watchlist-commune', State.watchlistCommune, true);
+  closeSheet('sheet-form');
+  showToast('Activité supprimée');
+  renderAll();
+}
+
+/* ============================================================
+   RECETTES (partagées, avec photos)
+   ============================================================ */
+function renderRecipes(){
+  const box = document.getElementById('recipes-list');
+  if(!box) return;
+  const q = (document.getElementById('recipe-search').value||'').toLowerCase();
+  let list = State.recipesIndex.filter(r=>{
+    if(!q) return true;
+    return (r.title||'').toLowerCase().includes(q) || (r.tags||[]).some(t=>t.toLowerCase().includes(q));
+  });
+  list = list.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  box.innerHTML='';
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">🍳</span>Aucune recette pour l\'instant.<br>Ajoutez-en une avec le bouton ＋ ci-dessus.</div>';
+    return;
+  }
+  list.forEach(r=>{
+    const tag = r.tags && r.tags[0] ? RECIPE_TAGS.find(t=>t.id===r.tags[0]) : null;
+    const row = document.createElement('div');
+    row.className='activity-row';
+    const thumbHtml = r.thumb
+      ? '<img src="'+r.thumb+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
+      : '<div class="cat-badge">'+(tag?tag.emoji:'🍳')+'</div>';
+    row.innerHTML = thumbHtml+
+      '<div class="info">'+
+        '<p class="name">'+escapeHtml(r.title)+'</p>'+
+        '<div class="meta">'+(tag?'<span>'+tag.emoji+' '+tag.label+'</span>':'')+'<span>par '+escapeHtml(r.author||'?')+'</span></div>'+
+      '</div>';
+    row.querySelector('.info').onclick = ()=>openRecipeDetail(r.id);
+    const img = row.querySelector('img'); if(img) img.onclick = ()=>openRecipeDetail(r.id);
+    box.appendChild(row);
+  });
+}
+async function openRecipeDetail(id){
+  const full = await storeGet('recipe:'+id, true);
+  if(!full){ showToast('Recette introuvable — elle a peut-être été supprimée.'); return; }
+  const box = document.getElementById('recipe-detail-body');
+  let html = '<h2 style="margin-top:0;">'+escapeHtml(full.title)+'</h2>';
+  html += '<div class="tag-row">'+(full.tags||[]).map(tid=>{ const t=RECIPE_TAGS.find(x=>x.id===tid); return t?'<span class="tag">'+t.emoji+' '+t.label+'</span>':''; }).join('')+'</div>';
+  if(full.photos && full.photos.length){
+    html += '<div style="display:flex; gap:8px; overflow-x:auto; margin:10px 0; padding-bottom:4px;">'+
+      full.photos.map(p=>'<img src="'+p+'" style="height:150px;border-radius:10px;border:1px solid var(--line); flex:0 0 auto;">').join('')+
+      '</div>';
+  }
+  if(full.ingredients) html += '<h3 style="font-size:15px;margin:14px 0 4px;">Ingrédients</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.ingredients)+'</div>';
+  if(full.steps) html += '<h3 style="font-size:15px;margin:14px 0 4px;">Préparation</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.steps)+'</div>';
+  html += '<div class="hint" style="margin:12px 0;">Ajoutée par '+escapeHtml(full.author||'?')+'</div>';
+  html += '<div class="btn-row"><button class="btn ghost" id="rec-edit" style="flex:1;">Modifier</button><button class="btn danger-outline" id="rec-delete" style="flex:1;">Supprimer</button></div>';
+  box.innerHTML = html;
+  box.querySelector('#rec-edit').onclick = ()=>{ closeSheet('sheet-recipe-detail'); openRecipeForm(full); };
+  box.querySelector('#rec-delete').onclick = async ()=>{
+    if(!confirm('Supprimer cette recette ?')) return;
+    State.recipesIndex = State.recipesIndex.filter(x=>x.id!==id);
+    await storeSet('recipes-index', State.recipesIndex, true);
+    await storeDelete('recipe:'+id, true);
+    closeSheet('sheet-recipe-detail');
+    renderRecipes();
+    showToast('Recette supprimée');
+  };
+  openSheet('sheet-recipe-detail');
+}
+function buildRecipeTagChips(){
+  const c = document.getElementById('rf-tags'); c.innerHTML='';
+  RECIPE_TAGS.forEach(t=>{
+    const b = chip(c,t,false);
+    b.onclick = ()=>{ c.querySelectorAll('.chip').forEach(x=>x.classList.remove('selected')); b.classList.add('selected'); };
+  });
+}
+function openRecipeForm(existing){
+  State.editingRecipeId = existing ? existing.id : null;
+  State.recipePhotos = existing ? (existing.photos||[]).slice() : [];
+  buildRecipeTagChips();
+  document.getElementById('recipe-form-title').textContent = existing ? 'Modifier la recette' : 'Nouvelle recette';
+  document.getElementById('btn-delete-recipe').style.display = existing ? 'block' : 'none';
+  document.getElementById('rf-title').value = existing ? existing.title : '';
+  document.getElementById('rf-ingredients').value = existing ? (existing.ingredients||'') : '';
+  document.getElementById('rf-steps').value = existing ? (existing.steps||'') : '';
+  document.getElementById('rf-photo-input').value = '';
+  if(existing && existing.tags && existing.tags[0]){
+    const b = document.querySelector('#rf-tags .chip[data-id="'+existing.tags[0]+'"]');
+    if(b) b.classList.add('selected');
+  }
+  renderPhotoPreview();
+  openSheet('sheet-recipe-form');
+}
+function renderPhotoPreview(){
+  const box = document.getElementById('rf-photo-preview');
+  box.innerHTML = State.recipePhotos.map((p,i)=>
+    '<div style="position:relative;">'+
+      '<img src="'+p+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">'+
+      '<button data-i="'+i+'" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:1;">✕</button>'+
+    '</div>'
+  ).join('');
+  box.querySelectorAll('button').forEach(btn=>{
+    btn.onclick = ()=>{ State.recipePhotos.splice(parseInt(btn.dataset.i,10),1); renderPhotoPreview(); };
+  });
+}
+// Redimensionne + compresse une image (fichier ou dataURL) pour ne pas exploser le stockage
+function shrinkImage(src, maxDim, quality){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      let w=img.width, h=img.height;
+      if(w>h && w>maxDim){ h=Math.round(h*maxDim/w); w=maxDim; }
+      else if(h>=w && h>maxDim){ w=Math.round(w*maxDim/h); h=maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = ()=>resolve(null);
+    img.src = src;
+  });
+}
+function readFileAsDataUrl(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function handleRecipePhotoInput(e){
+  const files = Array.from(e.target.files||[]);
+  for(const f of files){
+    if(State.recipePhotos.length>=3){ showToast('Maximum 3 photos par recette.'); break; }
+    try{
+      const raw = await readFileAsDataUrl(f);
+      const compressed = await shrinkImage(raw, 1000, 0.7);
+      if(compressed) State.recipePhotos.push(compressed);
+    }catch(err){ showToast("Une photo n'a pas pu être chargée."); }
+  }
+  renderPhotoPreview();
+  e.target.value='';
+}
+async function saveRecipe(){
+  const title = document.getElementById('rf-title').value.trim();
+  if(!title){ showToast('Donne un nom à ce plat.'); return; }
+  const tagBtn = document.querySelector('#rf-tags .chip.selected');
+  const tags = tagBtn ? [tagBtn.dataset.id] : [];
+  const ingredients = document.getElementById('rf-ingredients').value.trim();
+  const steps = document.getElementById('rf-steps').value.trim();
+  const id = State.editingRecipeId || uid();
+  const author = (State.profile&&State.profile.name)||'Anonyme';
+  const existingIdx = State.recipesIndex.findIndex(x=>x.id===id);
+  const createdAt = existingIdx>=0 ? (State.recipesIndex[existingIdx].createdAt||Date.now()) : Date.now();
+  const thumb = State.recipePhotos.length ? await shrinkImage(State.recipePhotos[0], 160, 0.55) : null;
+
+  const fullRecipe = {id, title, tags, ingredients, steps, photos: State.recipePhotos.slice(), author, createdAt};
+  await storeSet('recipe:'+id, fullRecipe, true);
+
+  const indexEntry = {id, title, tags, author, createdAt, thumb};
+  if(existingIdx>=0) State.recipesIndex[existingIdx] = indexEntry;
+  else State.recipesIndex.push(indexEntry);
+  await storeSet('recipes-index', State.recipesIndex, true);
+
+  closeSheet('sheet-recipe-form');
+  showToast('Recette enregistrée ✓');
+  renderRecipes();
+}
+async function deleteRecipeFromForm(){
+  if(!State.editingRecipeId) return;
+  if(!confirm('Supprimer cette recette ?')) return;
+  State.recipesIndex = State.recipesIndex.filter(x=>x.id!==State.editingRecipeId);
+  await storeSet('recipes-index', State.recipesIndex, true);
+  await storeDelete('recipe:'+State.editingRecipeId, true);
+  closeSheet('sheet-recipe-form');
+  renderRecipes();
+  showToast('Recette supprimée');
+}
+
+/* ============================================================
+   SURPRISE
+   ============================================================ */
+function doSurprise(){
+  const pool = filteredActivities();
+  if(!pool.length){ showToast('Aucune activité ne correspond aux filtres actuels.'); return; }
+  const a = pool[Math.floor(Math.random()*pool.length)];
+  const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
+  const box = document.getElementById('surprise-body');
+  box.innerHTML = '<div class="surprise-card">'+
+    '<div class="stamp">'+(cat?cat.emoji:'📌')+'</div>'+
+    '<h2>'+escapeHtml(a.name)+'</h2>'+
+    '<div class="meta">'+(a.canton?escapeHtml(a.canton):'')+'</div>'+
+    '<div class="btn-row">'+
+      '<button class="btn" id="sur-again">🎲 Encore</button>'+
+      '<button class="btn primary" id="sur-map">Voir sur la carte</button>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn ghost" id="sur-list" style="flex:1;">＋ Ajouter à notre liste</button></div>'+
+    '</div>';
+  box.querySelector('#sur-again').onclick = doSurprise;
+  box.querySelector('#sur-map').onclick = ()=>{
+    closeSheet('sheet-surprise'); switchView('carte');
+    const mk = State.markers[a.id];
+    if(mk) State.clusterGroup.zoomToShowLayer(mk, ()=>mk.openPopup());
+    else State.map.setView([a.lat,a.lng], 14);
+  };
+  box.querySelector('#sur-list').onclick = ()=>addToWatchlist(a.id,'commune');
+  openSheet('sheet-surprise');
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+function switchView(name){
+  State.view = name;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  if(name==='carte') setTimeout(()=>State.map.invalidateSize(), 50);
+}
+
+/* ============================================================
+   RENDU GLOBAL
+   ============================================================ */
+function renderAll(){
+  renderMarkers();
+  renderRepertoire();
+  renderWatchlist();
+  renderRecipes();
+  refreshFilterButtons();
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function verifyStorageWorks(){
+  try{
+    const testVal = 'ok-'+Date.now();
+    await fbdb.ref('shared/storage-selftest').set(testVal);
+    const snap = await fbdb.ref('shared/storage-selftest').once('value');
+    return snap.val()===testVal;
+  }catch(e){ return false; }
+}
+async function init(){
+  initMap();
+  await loadAll();
+  verifyStorageWorks().then(ok=>{
+    if(!ok) document.getElementById('storage-warning').style.display='block';
+  });
+
+  if(!State.profile){
+    openSheet('sheet-onboard');
+  } else {
+    document.getElementById('sub-line').textContent = 'salut '+State.profile.name+' — vos sorties, votre carte';
+  }
+
+  renderAll();
+  locateUser();
+  document.body.classList.add('app-loaded');
+  importSeedIfNeeded(); // tâche de fond, n'empêche pas d'utiliser l'appli pendant ce temps
+
+  // Navigation
+  document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+  document.getElementById('btn-add').onclick = ()=>openForm(null);
+
+  document.querySelectorAll('.subtabs [data-wl]').forEach(b=>{
+    b.onclick = ()=>{
+      State.wlTab = b.dataset.wl;
+      document.querySelectorAll('.subtabs [data-wl]').forEach(x=>x.classList.toggle('active', x===b));
+      renderWatchlist();
+    };
+  });
+
+  // Sheets close
+  document.querySelectorAll('[data-close]').forEach(b=> b.onclick = ()=>closeSheet(b.dataset.close));
+  document.querySelectorAll('.sheet-overlay').forEach(ov=>{
+    ov.addEventListener('click', e=>{ if(e.target===ov) closeSheet(ov.id); });
+  });
+
+  // Onboarding
+  document.getElementById('btn-onboard-save').onclick = async ()=>{
+    const name = document.getElementById('onboard-name').value.trim();
+    if(!name){ showToast('Entre un prénom pour continuer.'); return; }
+    State.profile = {name};
+    await storeSet('profile', State.profile, false);
+    document.getElementById('sub-line').textContent = 'salut '+name+' — vos sorties, votre carte';
+    closeSheet('sheet-onboard');
+  };
+  document.getElementById('btn-profile').onclick = ()=>{
+    document.getElementById('profile-name-display').textContent = State.profile ? State.profile.name : '(non défini)';
+    document.getElementById('export-count').textContent = State.activities.length+' activités, '+(State.watchlistPerso.length)+' dans ta liste, '+(State.watchlistCommune.length)+' dans la liste commune.';
+    openSheet('sheet-profile');
+  };
+  document.getElementById('btn-change-name').onclick = ()=>{
+    closeSheet('sheet-profile');
+    document.getElementById('onboard-name').value = State.profile ? State.profile.name : '';
+    openSheet('sheet-onboard');
+  };
+  document.getElementById('btn-export').onclick = exportBackup;
+  document.getElementById('btn-import').onclick = ()=>document.getElementById('import-file-input').click();
+  document.getElementById('import-file-input').addEventListener('change', importBackupFile);
+
+  // Filtres
+  document.getElementById('btn-open-filters').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
+  document.getElementById('btn-open-filters-2').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
+  document.getElementById('btn-open-filters-map').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
+  let mapSearchDebounce, mapNewPlaceDebounce;
+  document.getElementById('map-search').addEventListener('input', (e)=>{
+    clearTimeout(mapSearchDebounce);
+    clearTimeout(mapNewPlaceDebounce);
+    const val = e.target.value;
+    mapSearchDebounce = setTimeout(()=>{
+      State.filters.lieu = val.trim();
+      renderMarkers();
+      renderRepertoire();
+      refreshFilterButtons();
+    }, 200);
+    mapNewPlaceDebounce = setTimeout(()=>searchNewPlaces(val), 450);
+  });
+  document.getElementById('map-search').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      clearTimeout(mapSearchDebounce);
+      clearTimeout(mapNewPlaceDebounce);
+      const val = e.target.value;
+      State.filters.lieu = val.trim();
+      renderMarkers();
+      renderRepertoire();
+      refreshFilterButtons();
+      searchNewPlaces(val);
+      e.target.blur(); // referme le clavier une fois la recherche lancée
+    }
+  });
+  document.getElementById('btn-reco-toggle').onclick = ()=>{ State.filters.reco = !State.filters.reco; buildFilterChips(); };
+  document.getElementById('btn-apply-filters').onclick = ()=>{
+    State.filters.lieu = document.getElementById('filter-lieu').value.trim();
+    closeSheet('sheet-filters');
+    renderAll();
+  };
+  document.getElementById('btn-reset-filters').onclick = ()=>{
+    State.filters = {cats:[], saisons:[], durees:[], lieu:'', reco:false};
+    buildFilterChips();
+    renderAll();
+  };
+
+  // Recherche répertoire
+  document.getElementById('search-input').addEventListener('input', renderRepertoire);
+  document.getElementById('recipe-search').addEventListener('input', renderRecipes);
+  document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
+  document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
+  document.getElementById('btn-save-recipe').onclick = saveRecipe;
+  document.getElementById('btn-delete-recipe').onclick = deleteRecipeFromForm;
+
+  // Carte : localisation + surprise
+  document.getElementById('btn-locate').onclick = locateUser;
+  document.getElementById('btn-surprise').onclick = doSurprise;
+
+  // Formulaire
+  document.getElementById('f-loc-current').onclick = ()=>{
+    if(!State.userPos){ showToast('Ta position n\'est pas encore disponible.'); return; }
+    setPendingLoc(State.userPos.lat, State.userPos.lng, 'ma position');
+  };
+  document.getElementById('f-loc-map').onclick = (e)=>{
+    State.pickingOnMap = true;
+    closeSheet('sheet-form');
+    switchView('carte');
+    showToast('Touche un point sur la carte pour le choisir.');
+    e.target.textContent = '🗺️ En attente d\'un point…';
+  };
+  document.getElementById('f-loc-search').addEventListener('input', (e)=>{
+    clearTimeout(geoDebounce);
+    const q = e.target.value;
+    geoDebounce = setTimeout(()=>geocodeSearch(q), 500);
+  });
+  document.getElementById('f-loc-search').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); clearTimeout(geoDebounce); geocodeSearch(e.target.value); }
+  });
+  document.getElementById('f-loc-search-btn').onclick = ()=>{
+    clearTimeout(geoDebounce);
+    geocodeSearch(document.getElementById('f-loc-search').value);
+  };
+  document.getElementById('f-loc-gmaps-btn').onclick = handleGmapsInput;
+  document.getElementById('f-loc-gmaps-openlink').onclick = (e)=>{
+    const url = e.target.dataset.url;
+    if(url) window.open(url, '_blank');
+    showToast('Une fois la page ouverte, recopie l\'adresse complète depuis la barre du navigateur et recolle-la ici.');
+  };
+  document.getElementById('f-loc-latlng-btn').onclick = ()=>{
+    const lat = parseFloat(document.getElementById('f-lat').value.replace(',','.'));
+    const lng = parseFloat(document.getElementById('f-lng').value.replace(',','.'));
+    if(isNaN(lat)||isNaN(lng)||Math.abs(lat)>90||Math.abs(lng)>180){
+      showToast('Latitude/longitude invalides — vérifie les deux champs.');
+      return;
+    }
+    setPendingLoc(lat,lng,'coordonnées');
+    showToast('Emplacement défini ✓');
+    reverseGeocodeFillCanton(lat,lng);
+  };
+  let gmapsDebounce;
+  document.getElementById('f-loc-gmaps').addEventListener('input', (e)=>{
+    clearTimeout(gmapsDebounce);
+    gmapsDebounce = setTimeout(()=>handleGmapsInput(true), 400);
+  });
+  document.getElementById('f-loc-gmaps').addEventListener('paste', ()=>{
+    setTimeout(()=>handleGmapsInput(true), 50); // laisse le presse-papier se coller avant de lire la valeur
+  });
+  document.getElementById('f-loc-gmaps').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); handleGmapsInput(); }
+  });
+  document.getElementById('btn-save-activity').onclick = saveActivityFromForm;
+  document.getElementById('btn-save-option').onclick = saveNewOption;
+  document.getElementById('btn-delete-activity').onclick = ()=>{
+    if(confirm('Supprimer définitivement cette activité ?')) deleteActivity();
+  };
+
+  // Rafraîchissement "temps réel" (poll) des données partagées
+  // Synchronisation en direct : dès que l'un de vous modifie une donnée commune,
+  // l'autre la reçoit quasi instantanément (plus besoin d'attendre 8 secondes).
+  fbdb.ref('shared/activities').on('value', snap=>{ State.activities = snap.val() || []; renderAll(); });
+  fbdb.ref('shared/watchlist-commune').on('value', snap=>{ State.watchlistCommune = snap.val() || []; renderAll(); });
+  fbdb.ref('shared/recipes-index').on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
+  fbdb.ref('shared/custom-options').on('value', snap=>{
+    const v = snap.val();
+    if(v){ State.customMeteos = v.meteos||[]; State.customDurees = v.durees||[]; State.customCategories = v.categories||[]; }
+  });
+}
+
+init();
+})();
+</script>
+</body>
+</html>
