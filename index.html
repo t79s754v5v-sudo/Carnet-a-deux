@@ -337,6 +337,11 @@ main{flex:1 1 auto; position:relative; min-height:0;}
           <input type="text" id="search-input" placeholder="Chercher un nom, un canton, une ville…">
           <button class="icon-btn" id="btn-open-filters-2">⚙️</button>
         </div>
+        <div class="chip-group" id="repertoire-sort" style="margin-top:8px; margin-bottom:0;">
+          <button type="button" class="chip selected" data-sort="distance">📍 Distance</button>
+          <button type="button" class="chip" data-sort="note">⭐ Note</button>
+          <button type="button" class="chip" data-sort="alpha">🔤 A–Z</button>
+        </div>
       </div>
       <div class="scroll-area" id="repertoire-list"></div>
     </section>
@@ -463,11 +468,6 @@ main{flex:1 1 auto; position:relative; min-height:0;}
           </div>
           <button class="loc-btn" id="f-loc-latlng-btn" type="button">📌 Définir avec ces coordonnées</button>
 
-          <input type="text" id="f-loc-gmaps" placeholder="Ou colle un lien Google Maps complet">
-          <button class="loc-btn" id="f-loc-gmaps-btn" type="button">📋 Valider ce lien</button>
-          <button class="loc-btn" id="f-loc-gmaps-openlink" type="button" style="display:none;">↗ Ouvrir ce lien pour voir les coordonnées</button>
-          <div class="hint">⚠️ Les liens raccourcis (<em>maps.app.goo.gl/…</em>) ne fonctionnent pas directement — l'appli ne peut pas voir ce qu'ils cachent. Utilise plutôt les coordonnées ci-dessus, ou touche "Ouvrir ce lien" pour trouver l'adresse complète.</div>
-
           <input type="text" id="f-loc-search" placeholder="Ou tape une adresse / un lieu…">
           <button class="loc-btn" id="f-loc-search-btn" type="button">🔍 Rechercher ce lieu</button>
           <div class="geo-results" id="f-geo-results" style="display:none;"></div>
@@ -544,7 +544,9 @@ main{flex:1 1 auto; position:relative; min-height:0;}
       </div>
       <div class="field">
         <label>Ingrédients</label>
-        <textarea id="rf-ingredients" placeholder="Un ingrédient par ligne…" style="min-height:100px;"></textarea>
+        <div class="hint" style="margin-bottom:8px;">Le champ "Section" est facultatif — utile pour grouper (ex: "Pâte", "Garniture").</div>
+        <div id="rf-ingredients-list"></div>
+        <button class="btn ghost" id="rf-add-ingredient" type="button" style="padding:8px;">➕ Ajouter un ingrédient</button>
       </div>
       <div class="field">
         <label>📋 Étapes de préparation</label>
@@ -891,6 +893,43 @@ const SEED_ACTIVITIES = [
   ["Escape World","Vernayaz","Valais","Suisse"],
 ];
 
+// Jardins botaniques de Suisse (catégorie forcée : parc) — noms et villes vérifiés
+const SEED_BOTANIQUE = [
+  ["Jardin botanique de Genève","Genève","Genève","Suisse"],
+  ["Jardin botanique de Lausanne","Lausanne","Vaud","Suisse"],
+  ["Jardin botanique de l'Université de Fribourg","Fribourg","Fribourg","Suisse"],
+  ["Jardin botanique de Neuchâtel","Neuchâtel","Neuchâtel","Suisse"],
+  ["Jardin botanique Jurassica","Porrentruy","Jura","Suisse"],
+  ["Jardin botanique de l'Université de Bâle","Bâle","Bâle-Ville","Suisse"],
+  ["Jardin botanique de Berne","Berne","Berne","Suisse"],
+  ["Jardin botanique de l'île de Brissago","Isole di Brissago","Tessin","Suisse"],
+  ["Merian Gärten","Basel Brüglingen","Bâle-Ville","Suisse"],
+  ["Jardin botanique de l'Université de Zurich","Zurich","Zurich","Suisse"],
+  ["Arboretum d'Aubonne","Aubonne","Vaud","Suisse"],
+  ["Jardin alpin La Linnaea","Bourg-Saint-Pierre","Valais","Suisse"],
+  ["Jardin botanique alpin Flore-Alpe","Champex-Lac","Valais","Suisse"],
+  ["Jardin alpin de Meyrin","Meyrin","Genève","Suisse"],
+  ["Jardin botanique alpin La Rambertia","Rochers-de-Naye","Vaud","Suisse"],
+  ["Jardin alpin Schynige Platte","Schynige Platte","Berne","Suisse"],
+  ["Jardin alpin La Thomasia","Pont-de-Nant","Vaud","Suisse"],
+  ["Alpinum Schatzalp","Davos","Grisons","Suisse"],
+  ["Jardin botanique de Saint-Triphon","Saint-Triphon","Vaud","Suisse"],
+];
+
+// Bisses du Valais (catégorie forcée : rando) — noms et villes vérifiés
+const SEED_BISSES = [
+  ["Bisse du Ro","Crans-Montana","Valais","Suisse"],
+  ["Bisse de Clavau","Saint-Léonard","Valais","Suisse"],
+  ["Bisse de Savièse (Bisse Vieux)","Savièse","Valais","Suisse"],
+  ["Bisse du Trient","Finhaut","Valais","Suisse"],
+  ["Grand Bisse de Vex","Vex","Valais","Suisse"],
+  ["Bisse d'Ayent","Ayent","Valais","Suisse"],
+  ["Grand Bisse de Lens","Lens","Valais","Suisse"],
+  ["Bisse du Milieu","Haute-Nendaz","Valais","Suisse"],
+  ["Bisse de Salins","Salins","Valais","Suisse"],
+  ["Bisse de Champex","Champex","Valais","Suisse"],
+];
+
 function guessCategories(name){
   const n = name.toLowerCase();
   const cats = [];
@@ -954,6 +993,9 @@ const State = {
   recipePhotos: [],
   recipeTimes: [],
   recipeSteps: [],
+  recipeIngredients: [],
+  editingRecipeReviews: [],
+  repertoireSort: 'distance',
   editingRecipeId: null,
 };
 
@@ -1322,11 +1364,21 @@ function updateImportBanner(){
   document.getElementById('import-dismiss').onclick = ()=>{ State.importCancelled = true; State.importing = false; updateImportBanner(); };
 }
 async function importSeedIfNeeded(){
-  // Import "intelligent" : on ne traite que les lieux du guide qui ne sont pas déjà
-  // enregistrés (comparaison par nom). Comme ça, même si ça tourne plusieurs fois,
-  // ça ne crée jamais de doublons et ça ne refait jamais le travail déjà fait.
+  // Import "intelligent" : on ne traite que les lieux qui ne sont pas déjà enregistrés
+  // (comparaison par nom), sur toutes les listes combinées. Jamais de doublon, jamais
+  // de travail refait, même si ça tourne plusieurs fois.
+  const IMPORT_BATCHES = [
+    {list: SEED_ACTIVITIES, forceCategory: null},
+    {list: SEED_BOTANIQUE, forceCategory: 'parc'},
+    {list: SEED_BISSES, forceCategory: 'rando'},
+  ];
   const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
-  const missing = SEED_ACTIVITIES.filter(([name])=>!existingNames.has(name.trim().toLowerCase()));
+  const missing = [];
+  IMPORT_BATCHES.forEach(({list, forceCategory})=>{
+    list.forEach(entry=>{
+      if(!existingNames.has(entry[0].trim().toLowerCase())) missing.push({entry, forceCategory});
+    });
+  });
   if(!missing.length) return; // tout y est déjà, rien à faire
 
   State.importing = true;
@@ -1335,11 +1387,12 @@ async function importSeedIfNeeded(){
   State.importDone = 0;
   updateImportBanner();
   let batch = [];
-  for(const [name, ville, canton, pays] of missing){
+  for(const {entry, forceCategory} of missing){
+    const [name, ville, canton, pays] = entry;
     if(State.importCancelled) break;
     const loc = await geocodeOne(ville, canton, pays);
     if(loc){
-      const cats = guessCategories(name);
+      const cats = forceCategory ? [forceCategory] : guessCategories(name);
       batch.push({
         id: uid(), name, lat:loc.lat, lng:loc.lng, categories:cats,
         saisons: guessSaisons(name), durees:['demi'], meteos:[guessMeteo(cats)],
@@ -1438,7 +1491,11 @@ function renderRepertoire(){
     if(!q) return true;
     return (a.name||'').toLowerCase().includes(q) || (a.canton||'').toLowerCase().includes(q);
   });
-  if(State.userPos){
+  if(State.repertoireSort==='alpha'){
+    list = list.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'', 'fr'));
+  } else if(State.repertoireSort==='note'){
+    list = list.slice().sort((a,b)=>(avgRating(b)||0)-(avgRating(a)||0));
+  } else if(State.userPos){ // 'distance' (par défaut)
     list = list.slice().sort((a,b)=>{
       const da = distKm(State.userPos.lat,State.userPos.lng,a.lat,a.lng);
       const db = distKm(State.userPos.lat,State.userPos.lng,b.lat,b.lng);
@@ -1656,28 +1713,6 @@ function setPendingLoc(lat,lng, label){
   document.getElementById('f-loc-status').textContent = '📍 Emplacement défini'+(label?' — '+label:'')+' ('+lat.toFixed(4)+', '+lng.toFixed(4)+')';
   document.getElementById('f-loc-current').classList.toggle('set', true);
 }
-// Essaie d'extraire une latitude/longitude d'un texte : lien Google Maps (long ou avec !3d!4d/@/q=/ll=)
-// ou simplement une paire de nombres collée telle quelle.
-function parseCoordsOrGoogleUrl(text){
-  if(!text) return null;
-  const t = text.trim();
-  // Point exact d'un repère Google Maps (le plus précis quand présent)
-  let m = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
-  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
-  // Coordonnées après q= ou ll=
-  m = t.match(/[?&](?:q|ll)=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
-  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
-  // Centre de la vue dans l'URL (après @)
-  m = t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
-  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2])};
-  // Simple paire "46.519, 6.632" collée directement
-  m = t.match(/(-?\d{1,3}\.\d{3,})\s*[,;\s]\s*(-?\d{1,3}\.\d{3,})/);
-  if(m){
-    const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
-    if(Math.abs(lat)<=90 && Math.abs(lng)<=180) return {lat, lng};
-  }
-  return null;
-}
 // Remplit automatiquement canton/ville à partir de coordonnées (facultatif, n'empêche jamais l'enregistrement)
 async function reverseGeocodeFillCanton(lat,lng){
   const cantonField = document.getElementById('f-canton');
@@ -1691,26 +1726,6 @@ async function reverseGeocodeFillCanton(lat,lng){
     const val = [canton, ville].filter(Boolean).join(' — ');
     if(val && !cantonField.value.trim()) cantonField.value = val;
   }catch(e){ /* pas grave, la personne peut taper le canton à la main */ }
-}
-async function handleGmapsInput(silent){
-  const raw = document.getElementById('f-loc-gmaps').value.trim();
-  const openBtn = document.getElementById('f-loc-gmaps-openlink');
-  const coords = parseCoordsOrGoogleUrl(raw);
-  if(coords){
-    openBtn.style.display='none';
-    setPendingLoc(coords.lat, coords.lng, 'Google Maps');
-    showToast('Emplacement défini depuis Google Maps ✓');
-    reverseGeocodeFillCanton(coords.lat, coords.lng);
-    return;
-  }
-  if(/maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\//i.test(raw)){
-    openBtn.style.display='block';
-    openBtn.dataset.url = raw;
-    if(!silent) showToast('Ce lien est raccourci — touche "Ouvrir ce lien" ci-dessous.');
-    return;
-  }
-  openBtn.style.display='none';
-  if(!silent) showToast("Coordonnées introuvables — utilise plutôt Latitude/Longitude ci-dessus, ou choisis sur la carte.");
 }
 // Géocodage direct d'un texte libre (utilisé en filet de sécurité à l'enregistrement,
 // quand l'adresse a été tapée mais qu'aucune suggestion n'a été choisie).
@@ -1764,13 +1779,20 @@ async function searchNewPlaces(q){
       data = await res.json();
     }
     State.mapSearchResults = data;
-    if(!data.length){ box.style.display='none'; box.innerHTML=''; return; }
+    if(!data.length){
+      box.innerHTML = '<div style="padding:10px 12px; font-size:12.5px; color:var(--ink-soft);">Aucun résultat pour "'+escapeHtml(query)+'". Vérifie l\'orthographe, ou ajoute-le à la main via "＋ Ajouter" avec ses coordonnées.</div>';
+      box.style.display='block';
+      return;
+    }
     box.innerHTML = data.map((r,i)=>'<button data-i="'+i+'">➕ '+escapeHtml(r.display_name.split(',').slice(0,2).join(', '))+'</button>').join('');
     box.style.display='block';
     box.querySelectorAll('button').forEach(btn=>{
       btn.onclick = ()=>quickAddFromResult(State.mapSearchResults[parseInt(btn.dataset.i,10)]);
     });
-  }catch(e){ box.style.display='none'; }
+  }catch(e){
+    box.innerHTML = '<div style="padding:10px 12px; font-size:12.5px; color:var(--ink-soft);">Recherche indisponible pour le moment — réessaie dans un instant.</div>';
+    box.style.display='block';
+  }
 }
 function categoryFromNominatimType(r){
   const type = (r.type||'').toLowerCase();
@@ -1821,8 +1843,6 @@ function openForm(editId){
   const delBtn = document.getElementById('btn-delete-activity');
   document.getElementById('f-geo-results').style.display='none';
   document.getElementById('f-loc-current').classList.remove('set');
-  document.getElementById('f-loc-gmaps').value='';
-  document.getElementById('f-loc-gmaps-openlink').style.display='none';
 
   if(editId){
     const a = State.activities.find(x=>x.id===editId);
@@ -1855,6 +1875,16 @@ function openForm(editId){
 async function saveActivityFromForm(){
   const name = document.getElementById('f-name').value.trim();
   if(!name){ showToast('Donne un nom à cette activité.'); return; }
+
+  // Détection de doublon (seulement pour un nouvel ajout, pas en édition)
+  if(!State.editingId){
+    const dup = State.activities.find(a=>(a.name||'').trim().toLowerCase()===name.toLowerCase());
+    if(dup){
+      const proceed = confirm('Une activité nommée "'+name+'" existe déjà'+(dup.canton?' ('+dup.canton+')':'')+'.\n\nL\'ajouter quand même ?');
+      if(!proceed) return;
+    }
+  }
+
   const saveBtn = document.getElementById('btn-save-activity');
   let loc = State.pendingLoc || (State.editingId ? (()=>{ const a=State.activities.find(x=>x.id===State.editingId); return a && a.lat!=null ? {lat:a.lat,lng:a.lng} : null; })() : null);
 
@@ -1935,7 +1965,7 @@ function renderRecipes(){
     row.innerHTML = thumbHtml+
       '<div class="info">'+
         '<p class="name">'+escapeHtml(r.title)+'</p>'+
-        '<div class="meta">'+(tag?'<span>'+tag.emoji+' '+tag.label+'</span>':'')+'<span>par '+escapeHtml(r.author||'?')+'</span></div>'+
+        '<div class="meta">'+(tag?'<span>'+tag.emoji+' '+tag.label+'</span>':'')+(r.avgRating?'<span class="stars">'+starsStr(r.avgRating)+'</span>':'')+'<span>par '+escapeHtml(r.author||'?')+'</span></div>'+
       '</div>';
     row.querySelector('.info').onclick = ()=>openRecipeDetail(r.id);
     const img = row.querySelector('img'); if(img) img.onclick = ()=>openRecipeDetail(r.id);
@@ -1947,6 +1977,9 @@ async function openRecipeDetail(id){
   if(!full){ showToast('Recette introuvable — elle a peut-être été supprimée.'); return; }
   const box = document.getElementById('recipe-detail-body');
   let html = '<h2 style="margin-top:0;">'+escapeHtml(full.title)+'</h2>';
+  const avg = avgRating(full);
+  if(avg) html += '<div class="stars">'+starsStr(avg)+' ('+full.reviews.length+')</div>';
+  else html += '<div class="hint" style="color:var(--ink-faint);font-size:12px;">Pas encore noté</div>';
   html += '<div class="tag-row">'+(full.tags||[]).map(tid=>{ const t=RECIPE_TAGS.find(x=>x.id===tid); return t?'<span class="tag">'+t.emoji+' '+t.label+'</span>':''; }).join('')+'</div>';
   if(full.photos && full.photos.length){
     html += '<div style="display:flex; gap:8px; overflow-x:auto; margin:10px 0; padding-bottom:4px;">'+
@@ -1965,7 +1998,23 @@ async function openRecipeDetail(id){
     const totalMin = full.times.reduce((s,t)=>s+parseDurationToMinutes(t.duration),0);
     if(totalMin>0) html += '<div class="hint" style="margin:-4px 0 10px;">⏱️ Temps total estimé : '+formatMinutes(totalMin)+'</div>';
   }
-  if(full.ingredients) html += '<h3 style="font-size:15px;margin:14px 0 4px;">Ingrédients</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.ingredients)+'</div>';
+  if(full.ingredients && Array.isArray(full.ingredients) && full.ingredients.length){
+    html += '<h3 style="font-size:15px;margin:14px 0 8px;">Ingrédients</h3>';
+    let lastSection = null;
+    full.ingredients.forEach(ing=>{
+      if(ing.section && ing.section!==lastSection){
+        html += '<div style="font-family:var(--font-display); font-weight:600; margin:10px 0 4px; font-size:14px;">'+escapeHtml(ing.section)+'</div>';
+        lastSection = ing.section;
+      }
+      html += '<div style="display:flex; gap:10px; padding:5px 0; font-size:14px; border-bottom:1px solid var(--line);">'+
+        '<div style="min-width:64px; font-weight:600; color:var(--ink-soft);">'+escapeHtml(ing.qty||'')+'</div>'+
+        '<div>'+escapeHtml(ing.name||'')+'</div>'+
+      '</div>';
+    });
+  } else if(full.ingredients && typeof full.ingredients==='string' && full.ingredients.trim()){
+    // compatibilité avec les recettes créées avant cette mise à jour
+    html += '<h3 style="font-size:15px;margin:14px 0 4px;">Ingrédients</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.ingredients)+'</div>';
+  }
   if(full.steps && Array.isArray(full.steps) && full.steps.length){
     html += '<h3 style="font-size:15px;margin:14px 0 8px;">Préparation</h3>';
     full.steps.forEach((s,i)=>{
@@ -1979,8 +2028,35 @@ async function openRecipeDetail(id){
     html += '<h3 style="font-size:15px;margin:14px 0 4px;">Préparation</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.steps)+'</div>';
   }
   html += '<div class="hint" style="margin:12px 0;">Ajoutée par '+escapeHtml(full.author||'?')+'</div>';
-  html += '<div class="btn-row"><button class="btn ghost" id="rec-edit" style="flex:1;">Modifier</button><button class="btn danger-outline" id="rec-delete" style="flex:1;">Supprimer</button></div>';
+
+  html += '<h3 style="font-size:15px;margin:18px 0 4px;">Avis</h3>';
+  (full.reviews||[]).slice().reverse().forEach(r=>{
+    html += '<div class="review"><div class="who">'+escapeHtml(r.author)+' · <span class="stars">'+starsStr(r.rating)+'</span></div>'+
+      '<div class="when">'+new Date(r.date).toLocaleDateString('fr-CH')+'</div><p>'+escapeHtml(r.text||'')+'</p></div>';
+  });
+  html += '<div class="field" style="margin-top:14px;"><label>Laisser un avis</label>'+
+    '<div class="rating-input" id="recipe-rev-stars">'+[1,2,3,4,5].map(n=>'<span data-n="'+n+'">★</span>').join('')+'</div>'+
+    '<textarea id="recipe-rev-text" placeholder="Ton avis (optionnel)" style="margin-top:8px;"></textarea>'+
+    '<button class="btn primary" id="recipe-rev-save" style="width:100%;margin-top:8px;">Publier l\'avis</button></div>';
+
+  html += '<div class="btn-row" style="margin-top:16px;"><button class="btn ghost" id="rec-edit" style="flex:1;">Modifier</button><button class="btn danger-outline" id="rec-delete" style="flex:1;">Supprimer</button></div>';
   box.innerHTML = html;
+
+  let chosenStars = 0;
+  box.querySelectorAll('#recipe-rev-stars span').forEach(s=>{
+    s.onclick = ()=>{ chosenStars = parseInt(s.dataset.n,10); box.querySelectorAll('#recipe-rev-stars span').forEach(x=>x.classList.toggle('on', parseInt(x.dataset.n,10)<=chosenStars)); };
+  });
+  box.querySelector('#recipe-rev-save').onclick = async ()=>{
+    if(!chosenStars){ showToast('Choisis une note pour publier.'); return; }
+    full.reviews = full.reviews || [];
+    full.reviews.push({author:(State.profile&&State.profile.name)||'Anonyme', rating:chosenStars, text: box.querySelector('#recipe-rev-text').value.trim(), date: Date.now()});
+    await storeSet('recipe:'+id, full, true);
+    const idx = State.recipesIndex.findIndex(x=>x.id===id);
+    if(idx>=0){ State.recipesIndex[idx].avgRating = avgRating(full); await storeSet('recipes-index', State.recipesIndex, true); }
+    showToast('Avis publié ✓');
+    closeSheet('sheet-recipe-detail');
+    renderRecipes();
+  };
   box.querySelector('#rec-edit').onclick = ()=>{ closeSheet('sheet-recipe-detail'); openRecipeForm(full); };
   box.querySelector('#rec-delete').onclick = async ()=>{
     if(!confirm('Supprimer cette recette ?')) return;
@@ -2002,17 +2078,23 @@ function buildRecipeTagChips(){
 }
 function openRecipeForm(existing){
   State.editingRecipeId = existing ? existing.id : null;
+  State.editingRecipeReviews = existing ? (existing.reviews||[]) : [];
   State.recipePhotos = existing ? (existing.photos||[]).slice() : [];
   State.recipeTimes = existing ? (Array.isArray(existing.times) ? existing.times.map(t=>({label:t.label||'', duration:t.duration||''})) : []) : [];
   // Migration douce : les anciennes recettes avaient un seul champ "steps" en texte libre
   State.recipeSteps = existing
     ? (Array.isArray(existing.steps) ? existing.steps.slice() : (existing.steps ? existing.steps.split('\n').map(s=>s.trim()).filter(Boolean) : []))
     : [];
+  // Migration douce : les anciennes recettes stockaient les ingrédients en texte libre (une ligne = un ingrédient)
+  State.recipeIngredients = existing
+    ? (Array.isArray(existing.ingredients)
+        ? existing.ingredients.map(i=>({section:i.section||'', qty:i.qty||'', name:i.name||''}))
+        : (existing.ingredients ? existing.ingredients.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>({section:'', qty:'', name:l})) : []))
+    : [];
   buildRecipeTagChips();
   document.getElementById('recipe-form-title').textContent = existing ? 'Modifier la recette' : 'Nouvelle recette';
   document.getElementById('btn-delete-recipe').style.display = existing ? 'block' : 'none';
   document.getElementById('rf-title').value = existing ? existing.title : '';
-  document.getElementById('rf-ingredients').value = existing ? (existing.ingredients||'') : '';
   document.getElementById('rf-photo-input').value = '';
   if(existing && existing.tags && existing.tags[0]){
     const b = document.querySelector('#rf-tags .chip[data-id="'+existing.tags[0]+'"]');
@@ -2021,6 +2103,7 @@ function openRecipeForm(existing){
   renderPhotoPreview();
   renderTimeRows();
   renderStepRows();
+  renderIngredientRows();
   openSheet('sheet-recipe-form');
 }
 function renderTimeRows(){
@@ -2053,6 +2136,23 @@ function renderStepRows(){
   });
   box.querySelectorAll('.remove-x').forEach(btn=>{
     btn.onclick = ()=>{ State.recipeSteps.splice(+btn.dataset.i,1); renderStepRows(); };
+  });
+}
+function renderIngredientRows(){
+  const box = document.getElementById('rf-ingredients-list');
+  box.innerHTML = State.recipeIngredients.map((ing,i)=>
+    '<div style="display:flex; gap:6px; margin-bottom:8px;">'+
+      '<input type="text" data-i="'+i+'" data-f="section" value="'+escapeHtml(ing.section)+'" placeholder="Section" style="width:76px; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:11.5px;">'+
+      '<input type="text" data-i="'+i+'" data-f="qty" value="'+escapeHtml(ing.qty)+'" placeholder="200 g" style="width:66px; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:13px;">'+
+      '<input type="text" data-i="'+i+'" data-f="name" value="'+escapeHtml(ing.name)+'" placeholder="de farine" style="flex:1; padding:9px 8px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:13px;">'+
+      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+    '</div>'
+  ).join('');
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.oninput = ()=>{ State.recipeIngredients[+inp.dataset.i][inp.dataset.f] = inp.value; };
+  });
+  box.querySelectorAll('.remove-x').forEach(btn=>{
+    btn.onclick = ()=>{ State.recipeIngredients.splice(+btn.dataset.i,1); renderIngredientRows(); };
   });
 }
 function parseDurationToMinutes(str){
@@ -2124,7 +2224,9 @@ async function saveRecipe(){
   if(!title){ showToast('Donne un nom à ce plat.'); return; }
   const tagBtn = document.querySelector('#rf-tags .chip.selected');
   const tags = tagBtn ? [tagBtn.dataset.id] : [];
-  const ingredients = document.getElementById('rf-ingredients').value.trim();
+  const ingredients = State.recipeIngredients
+    .filter(i=>(i.name&&i.name.trim())||(i.qty&&i.qty.trim()))
+    .map(i=>({section:(i.section||'').trim(), qty:(i.qty||'').trim(), name:(i.name||'').trim()}));
   const times = State.recipeTimes.filter(t=>(t.label&&t.label.trim())||(t.duration&&t.duration.trim()))
     .map(t=>({label:t.label.trim(), duration:t.duration.trim()}));
   const steps = State.recipeSteps.map(s=>s.trim()).filter(Boolean);
@@ -2133,11 +2235,12 @@ async function saveRecipe(){
   const existingIdx = State.recipesIndex.findIndex(x=>x.id===id);
   const createdAt = existingIdx>=0 ? (State.recipesIndex[existingIdx].createdAt||Date.now()) : Date.now();
   const thumb = State.recipePhotos.length ? await shrinkImage(State.recipePhotos[0], 160, 0.55) : null;
+  const reviews = State.editingRecipeReviews || [];
 
-  const fullRecipe = {id, title, tags, ingredients, times, steps, photos: State.recipePhotos.slice(), author, createdAt};
+  const fullRecipe = {id, title, tags, ingredients, times, steps, photos: State.recipePhotos.slice(), author, createdAt, reviews};
   await storeSet('recipe:'+id, fullRecipe, true);
 
-  const indexEntry = {id, title, tags, author, createdAt, thumb};
+  const indexEntry = {id, title, tags, author, createdAt, thumb, avgRating: avgRating(fullRecipe)};
   if(existingIdx>=0) State.recipesIndex[existingIdx] = indexEntry;
   else State.recipesIndex.push(indexEntry);
   await storeSet('recipes-index', State.recipesIndex, true);
@@ -2311,6 +2414,13 @@ async function startApp(){
 
   // Recherche répertoire
   document.getElementById('search-input').addEventListener('input', renderRepertoire);
+  document.querySelectorAll('#repertoire-sort .chip').forEach(chip=>{
+    chip.onclick = ()=>{
+      State.repertoireSort = chip.dataset.sort;
+      document.querySelectorAll('#repertoire-sort .chip').forEach(c=>c.classList.toggle('selected', c===chip));
+      renderRepertoire();
+    };
+  });
   document.getElementById('recipe-search').addEventListener('input', renderRecipes);
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
   document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
@@ -2319,6 +2429,7 @@ async function startApp(){
   });
   document.getElementById('rf-add-time').onclick = ()=>{ State.recipeTimes.push({label:'', duration:''}); renderTimeRows(); };
   document.getElementById('rf-add-step').onclick = ()=>{ State.recipeSteps.push(''); renderStepRows(); };
+  document.getElementById('rf-add-ingredient').onclick = ()=>{ State.recipeIngredients.push({section:'',qty:'',name:''}); renderIngredientRows(); };
   document.getElementById('btn-save-recipe').onclick = saveRecipe;
   document.getElementById('btn-delete-recipe').onclick = deleteRecipeFromForm;
 
@@ -2350,12 +2461,6 @@ async function startApp(){
     clearTimeout(geoDebounce);
     geocodeSearch(document.getElementById('f-loc-search').value);
   };
-  document.getElementById('f-loc-gmaps-btn').onclick = handleGmapsInput;
-  document.getElementById('f-loc-gmaps-openlink').onclick = (e)=>{
-    const url = e.target.dataset.url;
-    if(url) window.open(url, '_blank');
-    showToast('Une fois la page ouverte, recopie l\'adresse complète depuis la barre du navigateur et recolle-la ici.');
-  };
   document.getElementById('f-loc-latlng-btn').onclick = ()=>{
     const lat = parseFloat(document.getElementById('f-lat').value.replace(',','.'));
     const lng = parseFloat(document.getElementById('f-lng').value.replace(',','.'));
@@ -2367,17 +2472,6 @@ async function startApp(){
     showToast('Emplacement défini ✓');
     reverseGeocodeFillCanton(lat,lng);
   };
-  let gmapsDebounce;
-  document.getElementById('f-loc-gmaps').addEventListener('input', (e)=>{
-    clearTimeout(gmapsDebounce);
-    gmapsDebounce = setTimeout(()=>handleGmapsInput(true), 400);
-  });
-  document.getElementById('f-loc-gmaps').addEventListener('paste', ()=>{
-    setTimeout(()=>handleGmapsInput(true), 50); // laisse le presse-papier se coller avant de lire la valeur
-  });
-  document.getElementById('f-loc-gmaps').addEventListener('keydown', (e)=>{
-    if(e.key==='Enter'){ e.preventDefault(); handleGmapsInput(); }
-  });
   document.getElementById('btn-save-activity').onclick = saveActivityFromForm;
   document.getElementById('btn-save-option').onclick = saveNewOption;
   document.getElementById('btn-delete-activity').onclick = ()=>{
