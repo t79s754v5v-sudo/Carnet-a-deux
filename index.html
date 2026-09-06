@@ -279,6 +279,16 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 </style>
 </head>
 <body>
+
+<div id="login-screen" style="position:fixed; inset:0; z-index:300; background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px;">
+  <span style="font-size:46px; margin-bottom:8px;">🧭</span>
+  <h2 style="font-family:var(--font-display); margin:0 0 4px; font-size:22px;">Carnet à Deux</h2>
+  <p style="color:var(--ink-soft); font-size:13.5px; margin:0 0 22px; text-align:center;">Connectez-vous pour accéder à votre carnet</p>
+  <input type="email" id="login-email" autocomplete="username" placeholder="Email" style="width:100%; max-width:320px; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); margin-bottom:10px; font-size:16px;">
+  <input type="password" id="login-password" autocomplete="current-password" placeholder="Mot de passe" style="width:100%; max-width:320px; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); margin-bottom:16px; font-size:16px;">
+  <button class="btn primary" id="login-btn" style="width:100%; max-width:320px; padding:13px;">Se connecter</button>
+  <div id="login-error" style="color:var(--danger); font-size:13px; margin-top:12px; text-align:center;"></div>
+</div>
 <div id="app">
 
   <header class="topbar">
@@ -535,12 +545,25 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <div id="rf-photo-preview" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
       </div>
       <div class="field">
+        <label>⏱️ Temps</label>
+        <div class="chip-group" id="rf-time-presets">
+          <button type="button" class="chip" data-preset="Préparation">⏱️ Préparation</button>
+          <button type="button" class="chip" data-preset="Cuisson">🔥 Cuisson</button>
+          <button type="button" class="chip" data-preset="Réfrigération">🧊 Réfrigération</button>
+          <button type="button" class="chip" data-preset="Congélation">❄️ Congélation</button>
+          <button type="button" class="chip" data-preset="Repos">💤 Repos</button>
+        </div>
+        <div id="rf-times-list"></div>
+        <button class="btn ghost" id="rf-add-time" type="button" style="padding:8px;">➕ Temps personnalisé</button>
+      </div>
+      <div class="field">
         <label>Ingrédients</label>
         <textarea id="rf-ingredients" placeholder="Un ingrédient par ligne…" style="min-height:100px;"></textarea>
       </div>
       <div class="field">
-        <label>Préparation</label>
-        <textarea id="rf-steps" placeholder="Les étapes, dans l'ordre…" style="min-height:120px;"></textarea>
+        <label>📋 Étapes de préparation</label>
+        <div id="rf-steps-list"></div>
+        <button class="btn ghost" id="rf-add-step" type="button" style="padding:8px;">➕ Ajouter une étape</button>
       </div>
       <div class="btn-row">
         <button class="btn danger-outline" id="btn-delete-recipe" style="display:none;">Supprimer</button>
@@ -593,6 +616,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script>
 "use strict";
 const firebaseConfig = {
@@ -606,6 +630,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const fbdb = firebase.database();
+const fbauth = firebase.auth();
 </script>
 <script>
 (function(){
@@ -941,20 +966,25 @@ const State = {
   mapSearchResults: [],
   recipesIndex: [],
   recipePhotos: [],
+  recipeTimes: [],
+  recipeSteps: [],
   editingRecipeId: null,
 };
 
 /* ============================================================
    STOCKAGE PERSISTANT (Firebase Realtime Database)
-   Le "profile" (prénom) reste sur cet appareil (localStorage) et sert de
-   clé pour ranger les données "personnelles" à part des données "communes".
+   Le "profile" (prénom) est mémorisé sur le compte connecté lui-même, et sert
+   d'identifiant pour ranger les données "personnelles" à part des données "communes".
    ============================================================ */
-function myName(){ try{ return localStorage.getItem('carnetADeux_myName') || null; }catch(e){ return null; } }
-function setMyNameCache(name){ try{ localStorage.setItem('carnetADeux_myName', name||''); }catch(e){} }
+function myName(){ return (fbauth.currentUser && fbauth.currentUser.displayName) || null; }
+async function setMyNameCache(name){
+  try{ if(fbauth.currentUser) await fbauth.currentUser.updateProfile({displayName:name||''}); }catch(e){}
+}
 function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
 function fbPath(key, shared){
   if(shared) return 'shared/'+key;
-  return 'personal/'+encodeKeyPart(myName()||'anonyme')+'/'+key;
+  const uid = fbauth.currentUser ? fbauth.currentUser.uid : 'anonyme';
+  return 'personal/'+encodeKeyPart(uid)+'/'+key;
 }
 async function storeGet(key, shared){
   if(key==='profile' && !shared){
@@ -969,7 +999,7 @@ async function storeGet(key, shared){
 }
 async function storeSet(key, value, shared){
   if(key==='profile' && !shared){
-    setMyNameCache(value && value.name ? value.name : '');
+    await setMyNameCache(value && value.name ? value.name : '');
     return {key, value, shared};
   }
   try{
@@ -1085,19 +1115,23 @@ function pinIcon(cats, mine){
   });
 }
 function renderMarkers(){
-  State.clusterGroup.clearLayers();
-  State.markers = {};
-  const list = filteredActivities();
-  const newMarkers = [];
-  list.forEach(a=>{
-    if(a.lat==null||a.lng==null) return;
-    const marker = L.marker([a.lat,a.lng], {icon: pinIcon(a.categories)});
-    marker.bindPopup(popupHtml(a));
-    marker.on('popupopen', ()=>wirePopup(a.id));
-    State.markers[a.id] = marker;
-    newMarkers.push(marker);
+  // On ne recrée un marqueur (et son icône) que s'il n'existe pas déjà en cache —
+  // beaucoup plus rapide que tout reconstruire à chaque lettre tapée dans la recherche.
+  const currentIds = new Set(State.activities.map(a=>a.id));
+  Object.keys(State.markers).forEach(id=>{ if(!currentIds.has(id)) delete State.markers[id]; });
+  State.activities.forEach(a=>{
+    if(a.lat==null || a.lng==null) return;
+    if(!State.markers[a.id]){
+      const marker = L.marker([a.lat,a.lng], {icon: pinIcon(a.categories)});
+      marker.bindPopup(()=>popupHtml(a)); // fonction = toujours les infos à jour, même après édition
+      marker.on('popupopen', ()=>wirePopup(a.id));
+      State.markers[a.id] = marker;
+    }
   });
-  State.clusterGroup.addLayers(newMarkers);
+  State.clusterGroup.clearLayers();
+  const list = filteredActivities();
+  const layers = list.map(a=>State.markers[a.id]).filter(Boolean);
+  State.clusterGroup.addLayers(layers);
 }
 function popupHtml(a){
   const cat = a.categories && a.categories[0] ? catById(a.categories[0]) : null;
@@ -1855,6 +1889,7 @@ async function saveActivityFromForm(){
   if(State.editingId){
     const a = State.activities.find(x=>x.id===State.editingId);
     Object.assign(a, {name, lat:loc.lat, lng:loc.lng, categories:cats, saisons, durees, meteos, canton, notes});
+    delete State.markers[a.id]; // force la reconstruction de l'icône (catégorie/position ont pu changer)
     delete a.duree; delete a.meteo; // on migre la fiche vers le nouveau format tableau
   }else{
     State.activities.push({
@@ -1925,8 +1960,31 @@ async function openRecipeDetail(id){
       full.photos.map(p=>'<img src="'+p+'" style="height:150px;border-radius:10px;border:1px solid var(--line); flex:0 0 auto;">').join('')+
       '</div>';
   }
+  if(full.times && full.times.length){
+    html += '<div style="display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;">'+
+      full.times.map(t=>
+        '<div style="background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:8px 12px; min-width:92px;">'+
+          '<div style="font-size:11px; color:var(--ink-soft);">'+escapeHtml(t.label||'Temps')+'</div>'+
+          '<div style="font-family:var(--font-display); font-size:15px;">'+escapeHtml(t.duration||'—')+'</div>'+
+        '</div>'
+      ).join('')+
+      '</div>';
+    const totalMin = full.times.reduce((s,t)=>s+parseDurationToMinutes(t.duration),0);
+    if(totalMin>0) html += '<div class="hint" style="margin:-4px 0 10px;">⏱️ Temps total estimé : '+formatMinutes(totalMin)+'</div>';
+  }
   if(full.ingredients) html += '<h3 style="font-size:15px;margin:14px 0 4px;">Ingrédients</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.ingredients)+'</div>';
-  if(full.steps) html += '<h3 style="font-size:15px;margin:14px 0 4px;">Préparation</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.steps)+'</div>';
+  if(full.steps && full.steps.length){
+    html += '<h3 style="font-size:15px;margin:14px 0 8px;">Préparation</h3>';
+    full.steps.forEach((s,i)=>{
+      html += '<div style="display:flex; gap:10px; margin-bottom:10px;">'+
+        '<div style="width:24px;height:24px;border-radius:50%;background:var(--trail);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;">'+(i+1)+'</div>'+
+        '<div style="flex:1; padding-top:2px; font-size:14px;">'+escapeHtml(s)+'</div>'+
+      '</div>';
+    });
+  } else if(full.steps && typeof full.steps==='string' && full.steps.trim()){
+    // compatibilité avec les recettes créées avant cette mise à jour
+    html += '<h3 style="font-size:15px;margin:14px 0 4px;">Préparation</h3><div class="note-block" style="white-space:pre-line;">'+escapeHtml(full.steps)+'</div>';
+  }
   html += '<div class="hint" style="margin:12px 0;">Ajoutée par '+escapeHtml(full.author||'?')+'</div>';
   html += '<div class="btn-row"><button class="btn ghost" id="rec-edit" style="flex:1;">Modifier</button><button class="btn danger-outline" id="rec-delete" style="flex:1;">Supprimer</button></div>';
   box.innerHTML = html;
@@ -1952,19 +2010,71 @@ function buildRecipeTagChips(){
 function openRecipeForm(existing){
   State.editingRecipeId = existing ? existing.id : null;
   State.recipePhotos = existing ? (existing.photos||[]).slice() : [];
+  State.recipeTimes = existing ? (Array.isArray(existing.times) ? existing.times.map(t=>({label:t.label||'', duration:t.duration||''})) : []) : [];
+  // Migration douce : les anciennes recettes avaient un seul champ "steps" en texte libre
+  State.recipeSteps = existing
+    ? (Array.isArray(existing.steps) ? existing.steps.slice() : (existing.steps ? existing.steps.split('\n').map(s=>s.trim()).filter(Boolean) : []))
+    : [];
   buildRecipeTagChips();
   document.getElementById('recipe-form-title').textContent = existing ? 'Modifier la recette' : 'Nouvelle recette';
   document.getElementById('btn-delete-recipe').style.display = existing ? 'block' : 'none';
   document.getElementById('rf-title').value = existing ? existing.title : '';
   document.getElementById('rf-ingredients').value = existing ? (existing.ingredients||'') : '';
-  document.getElementById('rf-steps').value = existing ? (existing.steps||'') : '';
   document.getElementById('rf-photo-input').value = '';
   if(existing && existing.tags && existing.tags[0]){
     const b = document.querySelector('#rf-tags .chip[data-id="'+existing.tags[0]+'"]');
     if(b) b.classList.add('selected');
   }
   renderPhotoPreview();
+  renderTimeRows();
+  renderStepRows();
   openSheet('sheet-recipe-form');
+}
+function renderTimeRows(){
+  const box = document.getElementById('rf-times-list');
+  box.innerHTML = State.recipeTimes.map((t,i)=>
+    '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">'+
+      '<input type="text" data-i="'+i+'" data-f="label" value="'+escapeHtml(t.label)+'" placeholder="Nom (ex: Cuisson)" style="flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3);">'+
+      '<input type="text" data-i="'+i+'" data-f="duration" value="'+escapeHtml(t.duration)+'" placeholder="ex: 30 min" style="width:96px; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3);">'+
+      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+    '</div>'
+  ).join('');
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.oninput = ()=>{ State.recipeTimes[+inp.dataset.i][inp.dataset.f] = inp.value; };
+  });
+  box.querySelectorAll('.remove-x').forEach(btn=>{
+    btn.onclick = ()=>{ State.recipeTimes.splice(+btn.dataset.i,1); renderTimeRows(); };
+  });
+}
+function renderStepRows(){
+  const box = document.getElementById('rf-steps-list');
+  box.innerHTML = State.recipeSteps.map((s,i)=>
+    '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:flex-start;">'+
+      '<div style="width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--paper-3);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;margin-top:6px;">'+(i+1)+'</div>'+
+      '<textarea data-i="'+i+'" placeholder="Décris cette étape…" style="flex:1; min-height:54px;">'+escapeHtml(s)+'</textarea>'+
+      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+    '</div>'
+  ).join('');
+  box.querySelectorAll('textarea').forEach(ta=>{
+    ta.oninput = ()=>{ State.recipeSteps[+ta.dataset.i] = ta.value; };
+  });
+  box.querySelectorAll('.remove-x').forEach(btn=>{
+    btn.onclick = ()=>{ State.recipeSteps.splice(+btn.dataset.i,1); renderStepRows(); };
+  });
+}
+function parseDurationToMinutes(str){
+  if(!str) return 0;
+  let total = 0, found = false;
+  const h = str.match(/(\d+)\s*h/i); if(h){ total += parseInt(h[1],10)*60; found = true; }
+  const m = str.match(/(\d+)\s*(min|mn)/i); if(m){ total += parseInt(m[1],10); found = true; }
+  if(!found){ const n = str.match(/^\s*(\d+)\s*$/); if(n) total += parseInt(n[1],10); }
+  return total;
+}
+function formatMinutes(total){
+  const h = Math.floor(total/60), m = total%60;
+  if(h && m) return h+'h'+String(m).padStart(2,'0');
+  if(h) return h+'h';
+  return m+' min';
 }
 function renderPhotoPreview(){
   const box = document.getElementById('rf-photo-preview');
@@ -2022,14 +2132,16 @@ async function saveRecipe(){
   const tagBtn = document.querySelector('#rf-tags .chip.selected');
   const tags = tagBtn ? [tagBtn.dataset.id] : [];
   const ingredients = document.getElementById('rf-ingredients').value.trim();
-  const steps = document.getElementById('rf-steps').value.trim();
+  const times = State.recipeTimes.filter(t=>(t.label&&t.label.trim())||(t.duration&&t.duration.trim()))
+    .map(t=>({label:t.label.trim(), duration:t.duration.trim()}));
+  const steps = State.recipeSteps.map(s=>s.trim()).filter(Boolean);
   const id = State.editingRecipeId || uid();
   const author = (State.profile&&State.profile.name)||'Anonyme';
   const existingIdx = State.recipesIndex.findIndex(x=>x.id===id);
   const createdAt = existingIdx>=0 ? (State.recipesIndex[existingIdx].createdAt||Date.now()) : Date.now();
   const thumb = State.recipePhotos.length ? await shrinkImage(State.recipePhotos[0], 160, 0.55) : null;
 
-  const fullRecipe = {id, title, tags, ingredients, steps, photos: State.recipePhotos.slice(), author, createdAt};
+  const fullRecipe = {id, title, tags, ingredients, times, steps, photos: State.recipePhotos.slice(), author, createdAt};
   await storeSet('recipe:'+id, fullRecipe, true);
 
   const indexEntry = {id, title, tags, author, createdAt, thumb};
@@ -2115,7 +2227,7 @@ async function verifyStorageWorks(){
     return snap.val()===testVal;
   }catch(e){ return false; }
 }
-async function init(){
+async function startApp(){
   initMap();
   await loadAll();
   verifyStorageWorks().then(ok=>{
@@ -2188,7 +2300,7 @@ async function init(){
       renderMarkers();
       renderRepertoire();
       refreshFilterButtons();
-    }, 200);
+    }, 100);
     mapNewPlaceDebounce = setTimeout(()=>searchNewPlaces(val), 450);
   });
   document.getElementById('map-search').addEventListener('keydown', (e)=>{
@@ -2222,6 +2334,11 @@ async function init(){
   document.getElementById('recipe-search').addEventListener('input', renderRecipes);
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
   document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
+  document.querySelectorAll('#rf-time-presets .chip').forEach(chip=>{
+    chip.onclick = ()=>{ State.recipeTimes.push({label:chip.dataset.preset, duration:''}); renderTimeRows(); };
+  });
+  document.getElementById('rf-add-time').onclick = ()=>{ State.recipeTimes.push({label:'', duration:''}); renderTimeRows(); };
+  document.getElementById('rf-add-step').onclick = ()=>{ State.recipeSteps.push(''); renderStepRows(); };
   document.getElementById('btn-save-recipe').onclick = saveRecipe;
   document.getElementById('btn-delete-recipe').onclick = deleteRecipeFromForm;
 
@@ -2299,7 +2416,34 @@ async function init(){
   });
 }
 
-init();
+/* ============================================================
+   CONNEXION (Firebase Authentication)
+   ============================================================ */
+let appStarted = false;
+document.getElementById('login-btn').onclick = async ()=>{
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if(!email || !pass){ errEl.textContent = 'Entre ton email et ton mot de passe.'; return; }
+  try{
+    await fbauth.signInWithEmailAndPassword(email, pass);
+  }catch(e){
+    errEl.textContent = "Email ou mot de passe incorrect.";
+  }
+};
+document.getElementById('login-password').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('login-btn').click();
+});
+fbauth.onAuthStateChanged(user=>{
+  const loginScreen = document.getElementById('login-screen');
+  if(user){
+    loginScreen.style.display = 'none';
+    if(!appStarted){ appStarted = true; startApp(); }
+  } else {
+    loginScreen.style.display = 'flex';
+  }
+});
 })();
 </script>
 </body>
