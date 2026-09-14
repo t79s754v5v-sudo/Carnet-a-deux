@@ -354,6 +354,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
       <div class="subtabs">
         <button data-wl="perso" class="active">Ma liste</button>
         <button data-wl="commune">Notre liste commune</button>
+        <button data-wl="recipes">🍳 Recettes à essayer</button>
       </div>
       <div class="scroll-area" id="watchlist-list"></div>
     </section>
@@ -366,6 +367,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
           <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
           <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
         </div>
+        <div class="chip-group" id="recipe-tag-filter" style="margin-top:8px; margin-bottom:0;"></div>
       </div>
       <div class="scroll-area" id="recipes-list"></div>
     </section>
@@ -416,6 +418,10 @@ main{flex:1 1 auto; position:relative; min-height:0;}
       <div class="field">
         <label>Suggestion du jour</label>
         <button class="chip" id="btn-reco-toggle" style="width:100%; justify-content:center;">🌤️ Activer la suggestion météo</button>
+      </div>
+      <div class="field">
+        <label>Watchlist</label>
+        <button class="chip" id="btn-watchlist-toggle" style="width:100%; justify-content:center;">✦ Afficher uniquement la watchlist</button>
       </div>
       <div class="field">
         <label>Catégories</label>
@@ -968,9 +974,10 @@ const State = {
   activities: [],
   watchlistPerso: [],   // [{id, activityId, done, dateDone}]
   watchlistCommune: [],
+  recipeWatchlist: [],
   userPos: null,        // {lat,lng}
   weather: null,        // {text,icon,state,temp}
-  filters: {cats:[], saisons:[], durees:[], lieu:'', reco:false},
+  filters: {cats:[], saisons:[], durees:[], lieu:'', reco:false, onlyWatchlist:false},
   map: null,
   markers: {},          // activityId -> L.Marker
   userMarker: null,
@@ -996,30 +1003,59 @@ const State = {
   recipeIngredients: [],
   editingRecipeReviews: [],
   repertoireSort: 'distance',
+  recipeFilterTags: [],
   editingRecipeId: null,
 };
 
 /* ============================================================
    STOCKAGE PERSISTANT (Firebase Realtime Database)
-   Le "profile" (prénom) est mémorisé sur le compte connecté lui-même, et sert
-   d'identifiant pour ranger les données "personnelles" à part des données "communes".
+   Le "profile" (prénom) et le "groupe" (couple/famille) sont déterminés par le
+   compte connecté. Chaque groupe a ses propres activités, recettes et watchlists,
+   totalement séparées des autres groupes.
    ============================================================ */
 const KNOWN_USERS = {
-  'cyril@gmail.com': 'Cyril',
-  'anne@gmail.com': 'Anne'
+  'cyril@gmail.com': {name:'Cyril', group:'bibou-bifou'},
+  'anne@gmail.com':  {name:'Anne',  group:'bibou-bifou'},
 };
 function myName(){
   const u = fbauth.currentUser;
   if(!u) return null;
   const email = (u.email||'').toLowerCase();
-  return KNOWN_USERS[email] || u.displayName || (u.email ? u.email.split('@')[0] : null);
+  const info = KNOWN_USERS[email];
+  return (info && info.name) || u.displayName || (u.email ? u.email.split('@')[0] : null);
+}
+function myGroup(){
+  const u = fbauth.currentUser;
+  if(!u) return null;
+  const email = (u.email||'').toLowerCase();
+  const info = KNOWN_USERS[email];
+  return info ? info.group : null;
+}
+// Écrit une seule fois (à la première connexion) la correspondance uid -> groupe dans la base,
+// pour que les règles de sécurité côté serveur puissent vérifier l'appartenance à un groupe.
+async function ensureUserGroupRecord(){
+  const u = fbauth.currentUser;
+  if(!u) return;
+  const email = (u.email||'').toLowerCase();
+  const info = KNOWN_USERS[email];
+  if(!info) return; // compte non reconnu : pas de groupe attribué
+  try{
+    const snap = await fbdb.ref('users/'+u.uid).once('value');
+    if(!snap.exists()) await fbdb.ref('users/'+u.uid).set({group: info.group, name: info.name});
+  }catch(e){ /* si ça échoue, les règles bloqueront simplement l'accès aux données partagées */ }
 }
 async function setMyNameCache(name){
   try{ if(fbauth.currentUser) await fbauth.currentUser.updateProfile({displayName:name||''}); }catch(e){}
 }
 function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
+// Seules les watchlists sont privées par groupe. Le répertoire d'activités, les recettes
+// et les options personnalisées restent communs à tout le monde, tous groupes confondus.
+const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist']);
 function fbPath(key, shared){
-  if(shared) return 'shared/'+key;
+  if(shared){
+    if(GROUP_SCOPED_KEYS.has(key)) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
+    return 'shared/'+key;
+  }
   const uid = fbauth.currentUser ? fbauth.currentUser.uid : 'anonyme';
   return 'personal/'+encodeKeyPart(uid)+'/'+key;
 }
@@ -1049,12 +1085,13 @@ async function storeDelete(key, shared){
 }
 
 async function loadAll(){
-  const [activities, wlPerso, wlCommune, customOptions, recipesIndex] = await Promise.all([
+  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist] = await Promise.all([
     storeGet('activities', true),
     storeGet('watchlist-perso', false),
     storeGet('watchlist-commune', true),
     storeGet('custom-options', true),
     storeGet('recipes-index', true),
+    storeGet('recipe-watchlist', true),
   ]);
   State.activities = activities || [];
   State.watchlistPerso = wlPerso || [];
@@ -1063,6 +1100,7 @@ async function loadAll(){
   State.customDurees = (customOptions && customOptions.durees) || [];
   State.customCategories = (customOptions && customOptions.categories) || [];
   State.recipesIndex = recipesIndex || [];
+  State.recipeWatchlist = recipeWatchlist || [];
 }
 
 /* ============================================================
@@ -1444,6 +1482,9 @@ function buildFilterChips(){
   const recoBtn = document.getElementById('btn-reco-toggle');
   recoBtn.classList.toggle('selected', State.filters.reco);
   recoBtn.textContent = State.filters.reco ? '🌤️ Suggestion météo activée' : '🌤️ Activer la suggestion météo';
+  const wlBtn = document.getElementById('btn-watchlist-toggle');
+  wlBtn.classList.toggle('selected', State.filters.onlyWatchlist);
+  wlBtn.textContent = State.filters.onlyWatchlist ? '✦ Watchlist uniquement (activé)' : '✦ Afficher uniquement la watchlist';
 }
 function toggleIn(arr,val){ const i=arr.indexOf(val); if(i>=0) arr.splice(i,1); else arr.push(val); }
 function filteredActivities(){
@@ -1467,12 +1508,19 @@ function filteredActivities(){
         if(!okAny) return false;
       }
     }
+    if(f.onlyWatchlist && !watchlistIds().has(a.id)) return false;
     return true;
   });
 }
+function watchlistIds(){
+  const ids = new Set();
+  State.watchlistPerso.forEach(w=>ids.add(w.activityId));
+  State.watchlistCommune.forEach(w=>ids.add(w.activityId));
+  return ids;
+}
 function hasActiveFilters(){
   const f = State.filters;
-  return f.cats.length || f.saisons.length || f.durees.length || f.lieu || f.reco;
+  return f.cats.length || f.saisons.length || f.durees.length || f.lieu || f.reco || f.onlyWatchlist;
 }
 function refreshFilterButtons(){
   const on = hasActiveFilters();
@@ -1560,9 +1608,62 @@ function removeFromWatchlist(which, entryId){
   else{ State.watchlistCommune = State.watchlistCommune.filter(x=>x.id!==entryId); storeSet('watchlist-commune', State.watchlistCommune, true); }
   renderWatchlist();
 }
+async function addToRecipeWatchlist(recipeId){
+  if(State.recipeWatchlist.some(x=>x.recipeId===recipeId)){ showToast('Déjà dans la liste à essayer.'); return; }
+  State.recipeWatchlist.push({id:uid(), recipeId, done:false, dateDone:null, addedAt:Date.now()});
+  await storeSet('recipe-watchlist', State.recipeWatchlist, true);
+  showToast('Ajoutée à la liste à essayer ✓');
+  renderWatchlist();
+}
+function toggleRecipeDone(entryId){
+  const e = State.recipeWatchlist.find(x=>x.id===entryId);
+  if(!e) return;
+  e.done = !e.done; e.dateDone = e.done ? Date.now() : null;
+  storeSet('recipe-watchlist', State.recipeWatchlist, true);
+  renderWatchlist();
+}
+function removeFromRecipeWatchlist(entryId){
+  State.recipeWatchlist = State.recipeWatchlist.filter(x=>x.id!==entryId);
+  storeSet('recipe-watchlist', State.recipeWatchlist, true);
+  renderWatchlist();
+}
 function renderWatchlist(){
   const box = document.getElementById('watchlist-list');
   const which = State.wlTab;
+
+  if(which==='recipes'){
+    box.innerHTML='';
+    if(!State.recipeWatchlist.length){
+      box.innerHTML = '<div class="empty-state"><span class="big">🍳</span>Rien ici pour l\'instant.<br>Touche le "＋" sur une recette pour l\'ajouter à essayer.</div>';
+      return;
+    }
+    const sorted = State.recipeWatchlist.slice().sort((a,b)=> (a.done - b.done) || (b.addedAt - a.addedAt));
+    sorted.forEach(entry=>{
+      const r = State.recipesIndex.find(x=>x.id===entry.recipeId);
+      if(!r) return;
+      const tag = r.tags && r.tags[0] ? RECIPE_TAGS.find(t=>t.id===r.tags[0]) : null;
+      const row = document.createElement('div');
+      row.className='activity-row';
+      const thumbHtml = r.thumb
+        ? '<img src="'+r.thumb+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
+        : '<div class="cat-badge">'+(tag?tag.emoji:'🍳')+'</div>';
+      row.innerHTML = thumbHtml+
+        '<div class="info" style="cursor:pointer;">'+
+          '<p class="name" style="'+(entry.done?'text-decoration:line-through;color:var(--ink-faint);':'')+'">'+escapeHtml(r.title)+'</p>'+
+          '<div class="meta">'+(tag?tag.emoji+' '+tag.label:'')+(entry.done?' · faite ✓':'')+'</div>'+
+        '</div>'+
+        '<div class="check-row">'+
+          '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'">'+(entry.done?'✓':'')+'</button>'+
+          '<button class="remove-x" data-remove="'+entry.id+'">✕</button>'+
+        '</div>';
+      row.querySelector('.info').onclick = ()=>openRecipeDetail(r.id);
+      row.querySelector('[data-toggle]').onclick = (ev)=>{ ev.stopPropagation(); toggleRecipeDone(entry.id); };
+      row.querySelector('[data-remove]').onclick = (ev)=>{ ev.stopPropagation(); removeFromRecipeWatchlist(entry.id); };
+      box.appendChild(row);
+    });
+    return;
+  }
+
   const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
   box.innerHTML='';
   if(!list.length){
@@ -1946,6 +2047,7 @@ function renderRecipes(){
   if(!box) return;
   const q = (document.getElementById('recipe-search').value||'').toLowerCase();
   let list = State.recipesIndex.filter(r=>{
+    if(State.recipeFilterTags.length && !(r.tags||[]).some(t=>State.recipeFilterTags.includes(t))) return false;
     if(!q) return true;
     return (r.title||'').toLowerCase().includes(q) || (r.tags||[]).some(t=>t.toLowerCase().includes(q));
   });
@@ -1966,9 +2068,11 @@ function renderRecipes(){
       '<div class="info">'+
         '<p class="name">'+escapeHtml(r.title)+'</p>'+
         '<div class="meta">'+(tag?'<span>'+tag.emoji+' '+tag.label+'</span>':'')+(r.avgRating?'<span class="stars">'+starsStr(r.avgRating)+'</span>':'')+'<span>par '+escapeHtml(r.author||'?')+'</span></div>'+
-      '</div>';
+      '</div>'+
+      '<button class="quick-add" data-id="'+r.id+'" title="Ajouter à la watchliste de recettes">＋</button>';
     row.querySelector('.info').onclick = ()=>openRecipeDetail(r.id);
     const img = row.querySelector('img'); if(img) img.onclick = ()=>openRecipeDetail(r.id);
+    row.querySelector('.quick-add').onclick = (ev)=>{ ev.stopPropagation(); addToRecipeWatchlist(r.id); };
     box.appendChild(row);
   });
 }
@@ -2318,10 +2422,25 @@ function renderAll(){
 async function verifyStorageWorks(){
   try{
     const testVal = 'ok-'+Date.now();
-    await fbdb.ref('shared/storage-selftest').set(testVal);
-    const snap = await fbdb.ref('shared/storage-selftest').once('value');
+    await fbdb.ref(fbPath('storage-selftest', true)).set(testVal);
+    const snap = await fbdb.ref(fbPath('storage-selftest', true)).once('value');
     return snap.val()===testVal;
   }catch(e){ return false; }
+}
+// Déconnexion automatique après 30 minutes sans aucune interaction (tap, frappe, défilement)
+let inactivityTimer;
+function startInactivityTimer(){
+  const reset = ()=>{
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(async ()=>{
+      try{ await fbauth.signOut(); }catch(e){}
+      location.reload();
+    }, 30*60*1000);
+  };
+  ['click','touchstart','keydown','scroll'].forEach(evt=>{
+    document.addEventListener(evt, reset, {passive:true});
+  });
+  reset();
 }
 async function startApp(){
   initMap();
@@ -2336,6 +2455,7 @@ async function startApp(){
   renderAll();
   locateUser();
   document.body.classList.add('app-loaded');
+  startInactivityTimer();
   importSeedIfNeeded(); // tâche de fond, n'empêche pas d'utiliser l'appli pendant ce temps
 
   // Navigation
@@ -2401,13 +2521,14 @@ async function startApp(){
     }
   });
   document.getElementById('btn-reco-toggle').onclick = ()=>{ State.filters.reco = !State.filters.reco; buildFilterChips(); };
+  document.getElementById('btn-watchlist-toggle').onclick = ()=>{ State.filters.onlyWatchlist = !State.filters.onlyWatchlist; buildFilterChips(); };
   document.getElementById('btn-apply-filters').onclick = ()=>{
     State.filters.lieu = document.getElementById('filter-lieu').value.trim();
     closeSheet('sheet-filters');
     renderAll();
   };
   document.getElementById('btn-reset-filters').onclick = ()=>{
-    State.filters = {cats:[], saisons:[], durees:[], lieu:'', reco:false};
+    State.filters = {cats:[], saisons:[], durees:[], lieu:'', reco:false, onlyWatchlist:false};
     buildFilterChips();
     renderAll();
   };
@@ -2422,6 +2543,11 @@ async function startApp(){
     };
   });
   document.getElementById('recipe-search').addEventListener('input', renderRecipes);
+  const rtf = document.getElementById('recipe-tag-filter');
+  RECIPE_TAGS.forEach(t=>{
+    const b = chip(rtf, t, false);
+    b.onclick = ()=>{ toggleIn(State.recipeFilterTags, t.id); b.classList.toggle('selected'); renderRecipes(); };
+  });
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
   document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
   document.querySelectorAll('#rf-time-presets .chip').forEach(chip=>{
@@ -2481,10 +2607,11 @@ async function startApp(){
   // Rafraîchissement "temps réel" (poll) des données partagées
   // Synchronisation en direct : dès que l'un de vous modifie une donnée commune,
   // l'autre la reçoit quasi instantanément (plus besoin d'attendre 8 secondes).
-  fbdb.ref('shared/activities').on('value', snap=>{ State.activities = snap.val() || []; renderAll(); });
-  fbdb.ref('shared/watchlist-commune').on('value', snap=>{ State.watchlistCommune = snap.val() || []; renderAll(); });
-  fbdb.ref('shared/recipes-index').on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
-  fbdb.ref('shared/custom-options').on('value', snap=>{
+  fbdb.ref(fbPath('activities', true)).on('value', snap=>{ State.activities = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('watchlist-commune', true)).on('value', snap=>{ State.watchlistCommune = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('recipes-index', true)).on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('recipe-watchlist', true)).on('value', snap=>{ State.recipeWatchlist = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('custom-options', true)).on('value', snap=>{
     const v = snap.val();
     if(v){ State.customMeteos = v.meteos||[]; State.customDurees = v.durees||[]; State.customCategories = v.categories||[]; }
   });
@@ -2513,7 +2640,10 @@ fbauth.onAuthStateChanged(user=>{
   const loginScreen = document.getElementById('login-screen');
   if(user){
     loginScreen.style.display = 'none';
-    if(!appStarted){ appStarted = true; startApp(); }
+    if(!appStarted){
+      appStarted = true;
+      ensureUserGroupRecord().then(startApp);
+    }
   } else {
     loginScreen.style.display = 'flex';
   }
