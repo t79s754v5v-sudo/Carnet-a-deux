@@ -367,9 +367,22 @@ main{flex:1 1 auto; position:relative; min-height:0;}
           <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
           <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
         </div>
-        <div class="chip-group" id="recipe-tag-filter" style="margin-top:8px; margin-bottom:0;"></div>
+        <div class="hint" style="margin:10px 0 4px;">Filtrer par type :</div>
+        <div class="chip-group" id="recipe-tag-filter" style="margin-top:0; margin-bottom:0;"></div>
       </div>
       <div class="scroll-area" id="recipes-list"></div>
+    </section>
+
+    <!-- ===== LIENS ===== -->
+    <section class="view" id="view-liens">
+      <div class="list-header">
+        <h2>Liens importants</h2>
+        <div class="search-row">
+          <input type="text" id="link-search" placeholder="Chercher un lien…">
+          <button class="icon-btn" id="btn-add-link" title="Nouveau lien">＋</button>
+        </div>
+      </div>
+      <div class="scroll-area" id="links-list"></div>
     </section>
   </main>
 
@@ -379,6 +392,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
     <button class="add-btn" id="btn-add"><span class="ic">＋</span>Ajouter</button>
     <button data-view="watchlists"><span class="ic">✦</span>Watchlists</button>
     <button data-view="recettes"><span class="ic">🍳</span>Recettes</button>
+    <button data-view="liens"><span class="ic">🔗</span>Liens</button>
   </nav>
 </div>
 
@@ -404,6 +418,32 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <div class="hint" id="export-count" style="margin-top:8px;"></div>
         <button class="btn" id="btn-import" style="width:100%; margin-top:10px;">📥 Restaurer depuis une sauvegarde</button>
         <input type="file" accept="application/json,.json" id="import-file-input" style="display:none;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: lien ===== -->
+<div class="sheet-overlay" id="sheet-link-form">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="link-form-title">Nouveau lien</h3><button class="close-x" data-close="sheet-link-form">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label>Titre</label>
+        <input type="text" id="lf-title" placeholder="ex: Réservation hôtel">
+      </div>
+      <div class="field">
+        <label>Lien (URL)</label>
+        <input type="text" id="lf-url" placeholder="https://…" autocapitalize="off" autocorrect="off">
+      </div>
+      <div class="field">
+        <label>Note (optionnel)</label>
+        <textarea id="lf-notes" placeholder="Un détail utile…"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger-outline" id="btn-delete-link" style="display:none;">Supprimer</button>
+        <button class="btn primary" id="btn-save-link" style="flex:2;">Enregistrer</button>
       </div>
     </div>
   </div>
@@ -936,6 +976,46 @@ const SEED_BISSES = [
   ["Bisse de Champex","Champex","Valais","Suisse"],
 ];
 
+// Lieux repris de la liste Google Maps "À faire Suisse" de Cyril, un par un, avec
+// catégorie propre à chacun (vérifiés — hôtels, fermetures définitives et doublons déjà écartés).
+const SEED_GOOGLE_LIST = [
+  ["Fosse aux Ours","Berne","Berne","Suisse","zoo"],
+  ["Accrobranche Charmey","Charmey","Fribourg","Suisse","aventure"],
+  ["Ovronnaz","Ovronnaz","Valais","Suisse","ville"],
+  ["First","Grindelwald","Berne","Suisse","rando"],
+  ["Bisse Neuf","Venthône","Valais","Suisse","rando"],
+  ["Le Deck Restaurant","Chexbres","Vaud","Suisse","resto"],
+  ["Bürgenstock","Bürgenstock","Nidwald","Suisse","rando"],
+  ["Via Ferrata Moléson","Moléson-sur-Gruyères","Fribourg","Suisse","aventure"],
+  ["Passerelle suspendue Charles Kuonen","Randa","Valais","Suisse","rando"],
+  ["Ascona","Ascona","Tessin","Suisse","ville"],
+  ["Chutes du Rhin","Neuhausen am Rheinfall","Schaffhouse","Suisse","parc"],
+  ["Lavey-les-Bains","Lavey-Morcles","Vaud","Suisse","spa"],
+  ["Lac de Montbovon","Montbovon","Fribourg","Suisse","lac"],
+  ["AQUATIS Aquarium-Vivarium","Lausanne","Vaud","Suisse","zoo"],
+  ["La Montagne des Singes","Kintzheim","Alsace","France","zoo"],
+  ["Lac de Montsalvens","Broc","Fribourg","Suisse","lac"],
+  ["Zoo de Zurich","Zurich","Zurich","Suisse","zoo"],
+  ["Barrage de Tseuzier","Icogne","Valais","Suisse","lac"],
+  ["Gorges de la Jogne","Broc","Fribourg","Suisse","parc"],
+  ["La Petite Venise","Colmar","Alsace","France","ville"],
+  ["Stanserhorn","Stans","Nidwald","Suisse","rando"],
+  ["Restaurant Les Gorges du Durnand","Bovernier","Valais","Suisse","resto"],
+  ["Waves Sky Lounge Bar","Neuchâtel","Neuchâtel","Suisse","cafe"],
+  ["Bisse du Levron","Levron","Valais","Suisse","rando"],
+  ["Bisse de Tsittoret","Crans-Montana","Valais","Suisse","rando"],
+  ["Bisse Vercorin","Vercorin","Valais","Suisse","rando"],
+  ["Bisse de Saxon","Saxon","Valais","Suisse","rando"],
+  ["Lac d'Oeschinen","Kandersteg","Berne","Suisse","lac"],
+  ["Pont du Trift","Gadmen","Berne","Suisse","rando"],
+  ["Niesen","Niesen","Berne","Suisse","rando"],
+  ["At'Home","Champéry","Valais","Suisse","resto"],
+  ["Jungfrau","Jungfrau","Berne","Suisse","rando"],
+  ["Île d'Ogoz","Le Bry","Fribourg","Suisse","lac"],
+  ["Creux-du-Van","Noiraigue","Neuchâtel","Suisse","parc"],
+  ["La Cabane","Nendaz","Valais","Suisse","resto"],
+];
+
 function guessCategories(name){
   const n = name.toLowerCase();
   const cats = [];
@@ -975,6 +1055,8 @@ const State = {
   watchlistPerso: [],   // [{id, activityId, done, dateDone}]
   watchlistCommune: [],
   recipeWatchlist: [],
+  links: [],
+  editingLinkId: null,
   userPos: null,        // {lat,lng}
   weather: null,        // {text,icon,state,temp}
   filters: {cats:[], saisons:[], durees:[], lieu:'', reco:false, onlyWatchlist:false},
@@ -1050,7 +1132,7 @@ async function setMyNameCache(name){
 function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
 // Seules les watchlists sont privées par groupe. Le répertoire d'activités, les recettes
 // et les options personnalisées restent communs à tout le monde, tous groupes confondus.
-const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist']);
+const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links']);
 function fbPath(key, shared){
   if(shared){
     if(GROUP_SCOPED_KEYS.has(key)) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
@@ -1085,13 +1167,14 @@ async function storeDelete(key, shared){
 }
 
 async function loadAll(){
-  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist] = await Promise.all([
+  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist, links] = await Promise.all([
     storeGet('activities', true),
     storeGet('watchlist-perso', false),
     storeGet('watchlist-commune', true),
     storeGet('custom-options', true),
     storeGet('recipes-index', true),
     storeGet('recipe-watchlist', true),
+    storeGet('links', true),
   ]);
   State.activities = activities || [];
   State.watchlistPerso = wlPerso || [];
@@ -1101,6 +1184,7 @@ async function loadAll(){
   State.customCategories = (customOptions && customOptions.categories) || [];
   State.recipesIndex = recipesIndex || [];
   State.recipeWatchlist = recipeWatchlist || [];
+  State.links = links || [];
 }
 
 /* ============================================================
@@ -1409,6 +1493,7 @@ async function importSeedIfNeeded(){
     {list: SEED_ACTIVITIES, forceCategory: null},
     {list: SEED_BOTANIQUE, forceCategory: 'parc'},
     {list: SEED_BISSES, forceCategory: 'rando'},
+    {list: SEED_GOOGLE_LIST, forceCategory: null}, // catégorie propre à chaque ligne (5e élément)
   ];
   const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
   const missing = [];
@@ -1426,11 +1511,11 @@ async function importSeedIfNeeded(){
   updateImportBanner();
   let batch = [];
   for(const {entry, forceCategory} of missing){
-    const [name, ville, canton, pays] = entry;
+    const [name, ville, canton, pays, ownCategory] = entry;
     if(State.importCancelled) break;
     const loc = await geocodeOne(ville, canton, pays);
     if(loc){
-      const cats = forceCategory ? [forceCategory] : guessCategories(name);
+      const cats = ownCategory ? [ownCategory] : (forceCategory ? [forceCategory] : guessCategories(name));
       batch.push({
         id: uid(), name, lat:loc.lat, lng:loc.lng, categories:cats,
         saisons: guessSaisons(name), durees:['demi'], meteos:[guessMeteo(cats)],
@@ -2365,6 +2450,75 @@ async function deleteRecipeFromForm(){
 }
 
 /* ============================================================
+   LIENS IMPORTANTS (privés par groupe)
+   ============================================================ */
+function renderLinks(){
+  const box = document.getElementById('links-list');
+  if(!box) return;
+  const q = (document.getElementById('link-search').value||'').toLowerCase();
+  let list = State.links.filter(l=>{
+    if(!q) return true;
+    return (l.title||'').toLowerCase().includes(q) || (l.url||'').toLowerCase().includes(q);
+  });
+  list = list.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  box.innerHTML='';
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">🔗</span>Aucun lien pour l\'instant.<br>Ajoutez-en un avec le bouton ＋ ci-dessus.</div>';
+    return;
+  }
+  list.forEach(l=>{
+    let domain = l.url || '';
+    try{ domain = new URL(l.url).hostname.replace(/^www\./,''); }catch(e){ /* url invalide, on garde tel quel */ }
+    const row = document.createElement('div');
+    row.className='activity-row';
+    row.innerHTML = '<div class="cat-badge">🔗</div>'+
+      '<div class="info" style="cursor:pointer;">'+
+        '<p class="name">'+escapeHtml(l.title || domain)+'</p>'+
+        '<div class="meta"><span>'+escapeHtml(domain)+'</span>'+(l.addedBy?'<span>par '+escapeHtml(l.addedBy)+'</span>':'')+'</div>'+
+      '</div>'+
+      '<button class="remove-x" data-edit="'+l.id+'" title="Modifier">✏️</button>';
+    row.querySelector('.info').onclick = ()=>{ window.open(l.url, '_blank'); };
+    row.querySelector('[data-edit]').onclick = (ev)=>{ ev.stopPropagation(); openLinkForm(l); };
+    box.appendChild(row);
+  });
+}
+function openLinkForm(existing){
+  State.editingLinkId = existing ? existing.id : null;
+  document.getElementById('link-form-title').textContent = existing ? 'Modifier le lien' : 'Nouveau lien';
+  document.getElementById('btn-delete-link').style.display = existing ? 'block' : 'none';
+  document.getElementById('lf-title').value = existing ? (existing.title||'') : '';
+  document.getElementById('lf-url').value = existing ? (existing.url||'') : '';
+  document.getElementById('lf-notes').value = existing ? (existing.notes||'') : '';
+  openSheet('sheet-link-form');
+}
+async function saveLink(){
+  let url = document.getElementById('lf-url').value.trim();
+  if(!url){ showToast('Colle ou tape un lien.'); return; }
+  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
+  const title = document.getElementById('lf-title').value.trim();
+  const notes = document.getElementById('lf-notes').value.trim();
+  const id = State.editingLinkId || uid();
+  const existingIdx = State.links.findIndex(x=>x.id===id);
+  const createdAt = existingIdx>=0 ? (State.links[existingIdx].createdAt||Date.now()) : Date.now();
+  const entry = {id, title, url, notes, createdAt, addedBy:(State.profile&&State.profile.name)||'Anonyme'};
+  if(existingIdx>=0) State.links[existingIdx] = entry;
+  else State.links.push(entry);
+  await storeSet('links', State.links, true);
+  closeSheet('sheet-link-form');
+  showToast('Lien enregistré ✓');
+  renderLinks();
+}
+async function deleteLink(){
+  if(!State.editingLinkId) return;
+  if(!confirm('Supprimer ce lien ?')) return;
+  State.links = State.links.filter(x=>x.id!==State.editingLinkId);
+  await storeSet('links', State.links, true);
+  closeSheet('sheet-link-form');
+  showToast('Lien supprimé');
+  renderLinks();
+}
+
+/* ============================================================
    SURPRISE
    ============================================================ */
 function doSurprise(){
@@ -2413,6 +2567,7 @@ function renderAll(){
   renderRepertoire();
   renderWatchlist();
   renderRecipes();
+  renderLinks();
   refreshFilterButtons();
 }
 
@@ -2428,19 +2583,25 @@ async function verifyStorageWorks(){
   }catch(e){ return false; }
 }
 // Déconnexion automatique après 30 minutes sans aucune interaction (tap, frappe, défilement)
-let inactivityTimer;
 function startInactivityTimer(){
-  const reset = ()=>{
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(async ()=>{
+  const TIMEOUT_MS = 30*60*1000;
+  const markActivity = ()=>{ try{ localStorage.setItem('carnetADeux_lastActivity', String(Date.now())); }catch(e){} };
+  const checkInactivity = async ()=>{
+    let last = Date.now();
+    try{ last = parseInt(localStorage.getItem('carnetADeux_lastActivity'), 10) || Date.now(); }catch(e){}
+    if(Date.now() - last > TIMEOUT_MS){
       try{ await fbauth.signOut(); }catch(e){}
       location.reload();
-    }, 30*60*1000);
+    }
   };
+  markActivity();
   ['click','touchstart','keydown','scroll'].forEach(evt=>{
-    document.addEventListener(evt, reset, {passive:true});
+    document.addEventListener(evt, markActivity, {passive:true});
   });
-  reset();
+  // Vérifie dès que l'appli redevient visible (retour depuis le verrouillage, changement d'appli…)
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkInactivity(); });
+  // Et vérifie aussi périodiquement pendant que l'appli reste ouverte
+  setInterval(checkInactivity, 60*1000);
 }
 async function startApp(){
   initMap();
@@ -2549,6 +2710,10 @@ async function startApp(){
     b.onclick = ()=>{ toggleIn(State.recipeFilterTags, t.id); b.classList.toggle('selected'); renderRecipes(); };
   });
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
+  document.getElementById('link-search').addEventListener('input', renderLinks);
+  document.getElementById('btn-add-link').onclick = ()=>openLinkForm(null);
+  document.getElementById('btn-save-link').onclick = saveLink;
+  document.getElementById('btn-delete-link').onclick = deleteLink;
   document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
   document.querySelectorAll('#rf-time-presets .chip').forEach(chip=>{
     chip.onclick = ()=>{ State.recipeTimes.push({label:chip.dataset.preset, duration:''}); renderTimeRows(); };
@@ -2611,6 +2776,7 @@ async function startApp(){
   fbdb.ref(fbPath('watchlist-commune', true)).on('value', snap=>{ State.watchlistCommune = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('recipes-index', true)).on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('recipe-watchlist', true)).on('value', snap=>{ State.recipeWatchlist = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('links', true)).on('value', snap=>{ State.links = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('custom-options', true)).on('value', snap=>{
     const v = snap.val();
     if(v){ State.customMeteos = v.meteos||[]; State.customDurees = v.durees||[]; State.customCategories = v.categories||[]; }
