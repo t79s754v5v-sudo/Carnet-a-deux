@@ -61,8 +61,9 @@ input,textarea{font-family:inherit; font-size:16px;}
 .topbar h1{font-size:19px; margin:0; color:var(--paper-3); line-height:1;}
 .topbar .sub{font-size:11px; color:#C9C2A6; margin-top:2px;}
 .topbar .profile-btn{
-  background:transparent; border:1px solid #4a5a4c; color:var(--paper-3); border-radius:8px;
-  padding:6px 10px; font-size:13px;
+  background:var(--trail); border:2px solid #4a5a4c; color:#fff; border-radius:50%;
+  width:38px; height:38px; padding:0; font-family:var(--font-display); font-size:16px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; flex:0 0 auto;
 }
 .app-loaded .compass{animation:spin-in .9s ease-out;}
 @keyframes spin-in{from{transform:rotate(-160deg) scale(.6); opacity:0;} to{transform:rotate(0) scale(1); opacity:1;}}
@@ -289,6 +290,24 @@ main{flex:1 1 auto; position:relative; min-height:0;}
   <button class="btn primary" id="login-btn" style="width:100%; max-width:320px; padding:13px;">Se connecter</button>
   <div id="login-error" style="color:var(--danger); font-size:13px; margin-top:12px; text-align:center;"></div>
 </div>
+
+<div id="intro-overlay" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(31,46,35,.55); align-items:flex-end; justify-content:center;">
+  <div style="background:var(--paper); border-radius:18px 18px 0 0; padding:22px 20px calc(20px + env(safe-area-inset-bottom,0px)); max-width:480px; width:100%; max-height:82vh; overflow-y:auto;">
+    <div style="text-align:center; margin-bottom:10px;"><span style="font-size:42px;">🧭</span></div>
+    <h2 style="text-align:center; margin:0 0 16px; font-family:var(--font-display);">Bienvenue dans votre carnet</h2>
+    <div style="font-size:14px; line-height:1.7; color:var(--ink);">
+      <p style="margin:0 0 10px;">🗺️ <strong>Carte</strong> — cherchez un lieu en haut, touchez une suggestion pour l'ajouter directement.</p>
+      <p style="margin:0 0 10px;">📖 <strong>Répertoire</strong> — tous les lieux enregistrés, triables par distance, note ou alphabet.</p>
+      <p style="margin:0 0 10px;">＋ <strong>Ajouter</strong> — s'adapte à l'onglet où vous êtes : activité, recette ou lien.</p>
+      <p style="margin:0 0 10px;">✦ <strong>Watchlists</strong> — vos envies à faire, privées à vous deux.</p>
+      <p style="margin:0 0 10px;">🍳 <strong>Recettes</strong> — partagées avec tous, notables, avec photos.</p>
+      <p style="margin:0 0 10px;">🔗 <strong>Liens</strong> — vos liens importants (réservations, docs…), privés à vous deux.</p>
+      <p style="margin:0;">🏷️ Une petite icône "Légende" sur la carte explique chaque symbole si besoin.</p>
+    </div>
+    <button class="btn primary" id="btn-intro-close" style="width:100%; margin-top:18px;">C'est parti !</button>
+  </div>
+</div>
+
 <div id="app">
 
   <header class="topbar">
@@ -323,6 +342,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         </div>
       </div>
       <div class="map-fabs">
+        <button class="fab filter-fab" id="btn-open-legend">🏷️ Légende</button>
         <button class="fab filter-fab" id="btn-open-filters">⚙️ Filtrer</button>
         <button class="fab surprise-fab" id="btn-surprise">🎲 Surprends-nous</button>
       </div>
@@ -389,7 +409,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
   <nav class="tabbar">
     <button data-view="carte" class="active"><span class="ic">🗺️</span>Carte</button>
     <button data-view="repertoire"><span class="ic">📖</span>Répertoire</button>
-    <button class="add-btn" id="btn-add"><span class="ic">＋</span>Ajouter</button>
+    <button class="add-btn" id="btn-add"><span class="ic">＋</span><span id="btn-add-label">Ajouter</span></button>
     <button data-view="watchlists"><span class="ic">✦</span>Watchlists</button>
     <button data-view="recettes"><span class="ic">🍳</span>Recettes</button>
     <button data-view="liens"><span class="ic">🔗</span>Liens</button>
@@ -446,6 +466,15 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <button class="btn primary" id="btn-save-link" style="flex:2;">Enregistrer</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: légende ===== -->
+<div class="sheet-overlay" id="sheet-legend">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Légende des catégories</h3><button class="close-x" data-close="sheet-legend">✕</button></div>
+    <div class="sheet-body pad-safe" id="legend-body"></div>
   </div>
 </div>
 
@@ -506,17 +535,19 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <div class="loc-methods">
           <button class="loc-btn" id="f-loc-current">📍 Utiliser ma position actuelle</button>
           <button class="loc-btn" id="f-loc-map">🗺️ Choisir un point sur la carte</button>
+          <button class="loc-btn" id="f-loc-more-toggle" type="button" style="border-style:dashed; text-align:center;">🔽 Autres façons de localiser</button>
+          <div id="f-loc-more" style="display:none;">
+            <div class="hint" style="margin-top:2px;"><strong>Le plus fiable avec Google Maps :</strong> appuie longuement sur l'endroit → une carte apparaît en bas avec les coordonnées (ex: 46.519300, 6.632300) → touche-les pour les copier → colle-les ci-dessous.</div>
+            <div style="display:flex; gap:8px;">
+              <input type="text" inputmode="decimal" id="f-lat" placeholder="Latitude, ex: 46.5193" style="flex:1;">
+              <input type="text" inputmode="decimal" id="f-lng" placeholder="Longitude, ex: 6.6323" style="flex:1;">
+            </div>
+            <button class="loc-btn" id="f-loc-latlng-btn" type="button">📌 Définir avec ces coordonnées</button>
 
-          <div class="hint" style="margin-top:2px;"><strong>Le plus fiable avec Google Maps :</strong> appuie longuement sur l'endroit → une carte apparaît en bas avec les coordonnées (ex: 46.519300, 6.632300) → touche-les pour les copier → colle-les ci-dessous.</div>
-          <div style="display:flex; gap:8px;">
-            <input type="text" inputmode="decimal" id="f-lat" placeholder="Latitude, ex: 46.5193" style="flex:1;">
-            <input type="text" inputmode="decimal" id="f-lng" placeholder="Longitude, ex: 6.6323" style="flex:1;">
+            <input type="text" id="f-loc-search" placeholder="Ou tape une adresse / un lieu…">
+            <button class="loc-btn" id="f-loc-search-btn" type="button">🔍 Rechercher ce lieu</button>
+            <div class="geo-results" id="f-geo-results" style="display:none;"></div>
           </div>
-          <button class="loc-btn" id="f-loc-latlng-btn" type="button">📌 Définir avec ces coordonnées</button>
-
-          <input type="text" id="f-loc-search" placeholder="Ou tape une adresse / un lieu…">
-          <button class="loc-btn" id="f-loc-search-btn" type="button">🔍 Rechercher ce lieu</button>
-          <div class="geo-results" id="f-geo-results" style="display:none;"></div>
         </div>
         <div class="hint" id="f-loc-status">Aucun emplacement défini pour l'instant.</div>
       </div>
@@ -2029,6 +2060,8 @@ function openForm(editId){
   const delBtn = document.getElementById('btn-delete-activity');
   document.getElementById('f-geo-results').style.display='none';
   document.getElementById('f-loc-current').classList.remove('set');
+  document.getElementById('f-loc-more').style.display = 'none';
+  document.getElementById('f-loc-more-toggle').textContent = '🔽 Autres façons de localiser';
 
   if(editId){
     const a = State.activities.find(x=>x.id===editId);
@@ -2556,6 +2589,8 @@ function switchView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  const addLabel = document.getElementById('btn-add-label');
+  if(addLabel) addLabel.textContent = name==='recettes' ? 'Recette' : (name==='liens' ? 'Lien' : 'Activité');
   if(name==='carte') setTimeout(()=>State.map.invalidateSize(), 50);
 }
 
@@ -2612,16 +2647,26 @@ async function startApp(){
   });
 
   document.getElementById('sub-line').textContent = 'salut '+State.profile.name+' — vos sorties, votre carte';
+  document.getElementById('btn-profile').textContent = (State.profile.name||'?').charAt(0).toUpperCase();
 
   renderAll();
   locateUser();
   document.body.classList.add('app-loaded');
   startInactivityTimer();
+  try{
+    if(!localStorage.getItem('carnetADeux_seenIntro')){
+      document.getElementById('intro-overlay').style.display = 'flex';
+    }
+  }catch(e){}
   importSeedIfNeeded(); // tâche de fond, n'empêche pas d'utiliser l'appli pendant ce temps
 
   // Navigation
   document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
-  document.getElementById('btn-add').onclick = ()=>openForm(null);
+  document.getElementById('btn-add').onclick = ()=>{
+    if(State.view==='recettes') openRecipeForm(null);
+    else if(State.view==='liens') openLinkForm(null);
+    else openForm(null);
+  };
 
   document.querySelectorAll('.subtabs [data-wl]').forEach(b=>{
     b.onclick = ()=>{
@@ -2642,6 +2687,10 @@ async function startApp(){
     document.getElementById('export-count').textContent = State.activities.length+' activités, '+(State.watchlistPerso.length)+' dans ta liste, '+(State.watchlistCommune.length)+' dans la liste commune.';
     openSheet('sheet-profile');
   };
+  document.getElementById('btn-intro-close').onclick = ()=>{
+    document.getElementById('intro-overlay').style.display = 'none';
+    try{ localStorage.setItem('carnetADeux_seenIntro', '1'); }catch(e){}
+  };
   document.getElementById('btn-logout').onclick = async ()=>{
     await fbauth.signOut();
     location.reload();
@@ -2651,6 +2700,16 @@ async function startApp(){
   document.getElementById('import-file-input').addEventListener('change', importBackupFile);
 
   // Filtres
+  document.getElementById('btn-open-legend').onclick = ()=>{
+    const box = document.getElementById('legend-body');
+    box.innerHTML = allCategories().map(c=>
+      '<div style="display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line);">'+
+        '<span style="font-size:22px; width:30px; text-align:center;">'+c.emoji+'</span>'+
+        '<span style="font-size:14.5px;">'+escapeHtml(c.label)+'</span>'+
+      '</div>'
+    ).join('');
+    openSheet('sheet-legend');
+  };
   document.getElementById('btn-open-filters').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
   document.getElementById('btn-open-filters-2').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
   document.getElementById('btn-open-filters-map').onclick = ()=>{ buildFilterChips(); openSheet('sheet-filters'); };
@@ -2752,6 +2811,12 @@ async function startApp(){
     clearTimeout(geoDebounce);
     geocodeSearch(document.getElementById('f-loc-search').value);
   };
+  document.getElementById('f-loc-more-toggle').onclick = ()=>{
+    const el = document.getElementById('f-loc-more');
+    const show = el.style.display==='none';
+    el.style.display = show ? 'block' : 'none';
+    document.getElementById('f-loc-more-toggle').textContent = show ? '🔼 Masquer les autres méthodes' : '🔽 Autres façons de localiser';
+  };
   document.getElementById('f-loc-latlng-btn').onclick = ()=>{
     const lat = parseFloat(document.getElementById('f-lat').value.replace(',','.'));
     const lng = parseFloat(document.getElementById('f-lng').value.replace(',','.'));
@@ -2818,3 +2883,4 @@ fbauth.onAuthStateChanged(user=>{
 </script>
 </body>
 </html>
+
