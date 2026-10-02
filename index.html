@@ -385,6 +385,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <h2>Recettes</h2>
         <div class="search-row">
           <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
+          <button class="icon-btn" id="btn-recipe-surprise" title="Qu'est-ce qu'on mange ?">🎲</button>
           <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
         </div>
         <div class="hint" style="margin:10px 0 4px;">Filtrer par type :</div>
@@ -653,6 +654,26 @@ main{flex:1 1 auto; position:relative; min-height:0;}
     <div class="sheet-grip"></div>
     <div class="sheet-head"><h3>Verdict du hasard</h3><button class="close-x" data-close="sheet-surprise">✕</button></div>
     <div class="sheet-body pad-safe" id="surprise-body"></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: choix du type pour le repas aléatoire ===== -->
+<div class="sheet-overlay" id="sheet-recipe-surprise-pick">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Qu'est-ce qu'on mange ?</h3><button class="close-x" data-close="sheet-recipe-surprise-pick">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="chip-group" id="recipe-surprise-types"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: résultat du repas aléatoire ===== -->
+<div class="sheet-overlay" id="sheet-recipe-surprise">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>Au menu !</h3><button class="close-x" data-close="sheet-recipe-surprise">✕</button></div>
+    <div class="sheet-body pad-safe" id="recipe-surprise-body"></div>
   </div>
 </div>
 
@@ -1045,6 +1066,33 @@ const SEED_GOOGLE_LIST = [
   ["Île d'Ogoz","Le Bry","Fribourg","Suisse","lac"],
   ["Creux-du-Van","Noiraigue","Neuchâtel","Suisse","parc"],
   ["La Cabane","Nendaz","Valais","Suisse","resto"],
+];
+
+// Randonnées et balades réputées de Suisse romande (vérifiées une par une)
+const SEED_BALADES = [
+  ["Rochers-de-Naye","Montreux","Vaud","Suisse","rando"],
+  ["Terrasses de Lavaux","Rivaz","Vaud","Suisse","rando"],
+  ["Mont Tendre","L'Abbaye","Vaud","Suisse","rando"],
+  ["Les Gastlosen","Jaun","Fribourg","Suisse","rando"],
+  ["Lac de Taney","Vouvry","Valais","Suisse","lac"],
+  ["Les Pléiades","Blonay","Vaud","Suisse","rando"],
+  ["Réserve naturelle du Moulin-Vert","Troinex","Genève","Suisse","parc"],
+  ["Gorges de l'Areuse","Noiraigue","Neuchâtel","Suisse","rando"],
+  ["Niremont","Châtel-sur-Montsalvens","Fribourg","Suisse","rando"],
+  ["Lac Bleu d'Arolla","Evolène","Valais","Suisse","lac"],
+  ["Dent de Jaman","Montreux","Vaud","Suisse","rando"],
+  ["Le Chamossaire","Villars-sur-Ollon","Vaud","Suisse","rando"],
+  ["Saut du Doubs (rive suisse)","Les Brenets","Neuchâtel","Suisse","rando"],
+  ["Le Chasseron","Sainte-Croix","Vaud","Suisse","rando"],
+  ["Sommet du Noirmont (Vaud)","Saint-Cergue","Vaud","Suisse","rando"],
+  ["Croix de Châtel","Sainte-Croix","Vaud","Suisse","rando"],
+  ["Pic Chaussy","Les Mosses","Vaud","Suisse","rando"],
+  ["La Dôle","Saint-Cergue","Vaud","Suisse","rando"],
+  ["Dent de Vaulion","Vaulion","Vaud","Suisse","rando"],
+  ["Tour d'Aï","Leysin","Vaud","Suisse","rando"],
+  ["Barrage d'Emosson","Finhaut","Valais","Suisse","lac"],
+  ["Sentier panoramique d'Eggishorn","Fiesch","Valais","Suisse","rando"],
+  ["Chasseral","Nods","Berne","Suisse","rando"],
 ];
 
 function guessCategories(name){
@@ -1525,6 +1573,7 @@ async function importSeedIfNeeded(){
     {list: SEED_BOTANIQUE, forceCategory: 'parc'},
     {list: SEED_BISSES, forceCategory: 'rando'},
     {list: SEED_GOOGLE_LIST, forceCategory: null}, // catégorie propre à chaque ligne (5e élément)
+    {list: SEED_BALADES, forceCategory: null},
   ];
   const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
   const missing = [];
@@ -1572,6 +1621,54 @@ async function importSeedIfNeeded(){
   updateImportBanner();
   renderAll();
   if(!State.importCancelled) showToast('Import terminé — '+State.activities.length+' lieux sur la carte ✓');
+}
+
+// Idées de recettes suggérées (écrites par mes soins, inspirées de proportions classiques
+// suisses pour ce type de biscuit) — ajoutées une seule fois, jamais si une recette du
+// même nom existe déjà (pour ne jamais écraser ce que vous avez créé vous-mêmes).
+const SEED_RECIPES = [
+  {
+    title: "Cookies aux pépites de chocolat",
+    tags: ["dessert"],
+    times: [
+      {label:"Préparation", duration:"20 min"},
+      {label:"Repos", duration:"15 min"},
+      {label:"Cuisson", duration:"12 min"},
+    ],
+    ingredients: [
+      {section:"", qty:"125 g", name:"de beurre mou"},
+      {section:"", qty:"150 g", name:"de sucre"},
+      {section:"", qty:"1 sachet", name:"de sucre vanillé"},
+      {section:"", qty:"1 pincée", name:"de sel"},
+      {section:"", qty:"1", name:"œuf"},
+      {section:"", qty:"200 g", name:"de farine"},
+      {section:"", qty:"½ cc", name:"de levure chimique"},
+      {section:"", qty:"150 g", name:"de pépites de chocolat"},
+    ],
+    steps: [
+      "Préchauffer le four à 180°C (160°C en chaleur tournante).",
+      "Battre le beurre mou avec le sucre et le sucre vanillé jusqu'à obtenir une texture crémeuse, puis ajouter l'œuf et bien mélanger.",
+      "Incorporer la farine, la levure et le sel, puis ajouter les pépites de chocolat sans trop travailler la pâte.",
+      "Former des petites boules et les disposer sur une plaque recouverte de papier cuisson, bien espacées.",
+      "Placer 15 minutes au réfrigérateur pour que les cookies gardent leur forme à la cuisson.",
+      "Cuire environ 12 minutes, jusqu'à ce que les bords soient dorés et le centre encore moelleux.",
+      "Laisser refroidir quelques minutes sur la plaque avant de déguster.",
+    ],
+  },
+];
+async function seedDefaultRecipesIfNeeded(){
+  const existingTitles = new Set(State.recipesIndex.map(r=>(r.title||'').trim().toLowerCase()));
+  const toAdd = SEED_RECIPES.filter(r=>!existingTitles.has(r.title.trim().toLowerCase()));
+  if(!toAdd.length) return;
+  for(const rec of toAdd){
+    const id = uid();
+    const createdAt = Date.now();
+    const full = {id, title:rec.title, tags:rec.tags, ingredients:rec.ingredients, times:rec.times, steps:rec.steps, photos:[], author:'Idée suggérée', createdAt, reviews:[]};
+    await storeSet('recipe:'+id, full, true);
+    State.recipesIndex.push({id, title:rec.title, tags:rec.tags, author:'Idée suggérée', createdAt, thumb:null});
+  }
+  await storeSet('recipes-index', State.recipesIndex, true);
+  renderRecipes();
 }
 
 /* ============================================================
@@ -2581,6 +2678,48 @@ function doSurprise(){
   openSheet('sheet-surprise');
 }
 
+function openRecipeSurprisePicker(){
+  const box = document.getElementById('recipe-surprise-types');
+  box.innerHTML = '';
+  const choices = [{id:'', label:'Peu importe', emoji:'🎲'}].concat(RECIPE_TAGS);
+  choices.forEach(t=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='chip';
+    b.innerHTML = t.emoji+' '+t.label;
+    b.onclick = ()=>{ closeSheet('sheet-recipe-surprise-pick'); doRecipeSurprise(t.id); };
+    box.appendChild(b);
+  });
+  openSheet('sheet-recipe-surprise-pick');
+}
+function doRecipeSurprise(typeId){
+  const pool = State.recipesIndex.filter(r=>!typeId || (r.tags||[]).includes(typeId));
+  const box = document.getElementById('recipe-surprise-body');
+  if(!pool.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">🍳</span>Aucune recette de ce type pour l\'instant.<br>Ajoutes-en une, ou réessaie avec "Peu importe".</div>';
+    openSheet('sheet-recipe-surprise');
+    return;
+  }
+  const r = pool[Math.floor(Math.random()*pool.length)];
+  const tag = r.tags && r.tags[0] ? RECIPE_TAGS.find(t=>t.id===r.tags[0]) : null;
+  const stampHtml = r.thumb
+    ? '<img src="'+r.thumb+'" style="width:96px;height:96px;object-fit:cover;border-radius:16px;border:3px solid var(--ink); margin:6px auto 14px; display:block;">'
+    : '<div class="stamp">'+(tag?tag.emoji:'🍳')+'</div>';
+  box.innerHTML = '<div class="surprise-card">'+
+    stampHtml+
+    '<h2>'+escapeHtml(r.title)+'</h2>'+
+    '<div class="meta">'+(tag?tag.emoji+' '+tag.label:'')+(r.avgRating?' · '+starsStr(r.avgRating):'')+'</div>'+
+    '<div class="btn-row">'+
+      '<button class="btn" id="rsur-again">🎲 Encore</button>'+
+      '<button class="btn primary" id="rsur-view">Voir la recette</button>'+
+    '</div>'+
+    '<div class="btn-row"><button class="btn ghost" id="rsur-add" style="flex:1;">＋ Ajouter à essayer</button></div>'+
+    '</div>';
+  box.querySelector('#rsur-again').onclick = ()=>doRecipeSurprise(typeId);
+  box.querySelector('#rsur-view').onclick = ()=>{ closeSheet('sheet-recipe-surprise'); openRecipeDetail(r.id); };
+  box.querySelector('#rsur-add').onclick = ()=>addToRecipeWatchlist(r.id);
+  openSheet('sheet-recipe-surprise');
+}
+
 /* ============================================================
    NAVIGATION
    ============================================================ */
@@ -2659,6 +2798,7 @@ async function startApp(){
     }
   }catch(e){}
   importSeedIfNeeded(); // tâche de fond, n'empêche pas d'utiliser l'appli pendant ce temps
+  seedDefaultRecipesIfNeeded();
 
   // Navigation
   document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
@@ -2768,6 +2908,7 @@ async function startApp(){
     const b = chip(rtf, t, false);
     b.onclick = ()=>{ toggleIn(State.recipeFilterTags, t.id); b.classList.toggle('selected'); renderRecipes(); };
   });
+  document.getElementById('btn-recipe-surprise').onclick = openRecipeSurprisePicker;
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
   document.getElementById('link-search').addEventListener('input', renderLinks);
   document.getElementById('btn-add-link').onclick = ()=>openLinkForm(null);
@@ -2883,4 +3024,3 @@ fbauth.onAuthStateChanged(user=>{
 </script>
 </body>
 </html>
-
