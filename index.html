@@ -433,6 +433,10 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         </div>
       </div>
       <div class="field">
+        <label>📜 Vos souvenirs</label>
+        <button class="btn primary" id="btn-open-carnet" style="width:100%;">📜 Notre carnet de citations</button>
+      </div>
+      <div class="field">
         <label>💾 Sauvegarde</label>
         <div class="hint" style="margin-bottom:10px;">Exporte toutes les activités, watchlists et réglages dans un fichier. Tu pourras ensuite l'enregistrer sur Google Drive, iCloud Drive, ou te l'envoyer par mail.</div>
         <button class="btn primary" id="btn-export" style="width:100%;">📤 Exporter mes données</button>
@@ -476,6 +480,33 @@ main{flex:1 1 auto; position:relative; min-height:0;}
     <div class="sheet-grip"></div>
     <div class="sheet-head"><h3>Légende des catégories</h3><button class="close-x" data-close="sheet-legend">✕</button></div>
     <div class="sheet-body pad-safe" id="legend-body"></div>
+  </div>
+</div>
+
+<!-- ===== SHEET: un mot pour se souvenir ===== -->
+<div class="sheet-overlay" id="sheet-citation-prompt">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>✓ Fait !</h3><button class="close-x" data-close="sheet-citation-prompt">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label id="citation-prompt-label">Un mot pour se souvenir ?</label>
+        <textarea id="citation-text" rows="3" placeholder="ex: On a ri aux larmes, à refaire absolument !"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-citation-skip">Passer</button>
+        <button class="btn primary" id="btn-citation-save" style="flex:2;">Ajouter au carnet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: carnet de citations ===== -->
+<div class="sheet-overlay" id="sheet-carnet">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>📜 Notre carnet de citations</h3><button class="close-x" data-close="sheet-carnet">✕</button></div>
+    <div class="sheet-body pad-safe" id="carnet-body"></div>
   </div>
 </div>
 
@@ -1136,6 +1167,8 @@ const State = {
   recipeWatchlist: [],
   links: [],
   editingLinkId: null,
+  carnetCitations: [],
+  pendingCitation: null,
   userPos: null,        // {lat,lng}
   weather: null,        // {text,icon,state,temp}
   filters: {cats:[], saisons:[], durees:[], lieu:'', reco:false, onlyWatchlist:false},
@@ -1211,7 +1244,7 @@ async function setMyNameCache(name){
 function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
 // Seules les watchlists sont privées par groupe. Le répertoire d'activités, les recettes
 // et les options personnalisées restent communs à tout le monde, tous groupes confondus.
-const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links']);
+const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links', 'carnet-citations']);
 function fbPath(key, shared){
   if(shared){
     if(GROUP_SCOPED_KEYS.has(key)) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
@@ -1246,7 +1279,7 @@ async function storeDelete(key, shared){
 }
 
 async function loadAll(){
-  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist, links] = await Promise.all([
+  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist, links, carnetCitations] = await Promise.all([
     storeGet('activities', true),
     storeGet('watchlist-perso', false),
     storeGet('watchlist-commune', true),
@@ -1254,6 +1287,7 @@ async function loadAll(){
     storeGet('recipes-index', true),
     storeGet('recipe-watchlist', true),
     storeGet('links', true),
+    storeGet('carnet-citations', true),
   ]);
   State.activities = activities || [];
   State.watchlistPerso = wlPerso || [];
@@ -1264,6 +1298,7 @@ async function loadAll(){
   State.recipesIndex = recipesIndex || [];
   State.recipeWatchlist = recipeWatchlist || [];
   State.links = links || [];
+  State.carnetCitations = carnetCitations || [];
 }
 
 /* ============================================================
@@ -1815,6 +1850,10 @@ function toggleDone(which, entryId){
   if(which==='perso') storeSet('watchlist-perso', State.watchlistPerso, false);
   else storeSet('watchlist-commune', State.watchlistCommune, true);
   renderWatchlist();
+  if(e.done){
+    const act = State.activities.find(a=>a.id===e.activityId);
+    promptCitation(act ? act.name : 'cette activité', 'activite');
+  }
 }
 function removeFromWatchlist(which, entryId){
   if(which==='perso'){ State.watchlistPerso = State.watchlistPerso.filter(x=>x.id!==entryId); storeSet('watchlist-perso', State.watchlistPerso, false); }
@@ -1834,11 +1873,68 @@ function toggleRecipeDone(entryId){
   e.done = !e.done; e.dateDone = e.done ? Date.now() : null;
   storeSet('recipe-watchlist', State.recipeWatchlist, true);
   renderWatchlist();
+  if(e.done){
+    const rec = State.recipesIndex.find(r=>r.id===e.recipeId);
+    promptCitation(rec ? rec.title : 'cette recette', 'recette');
+  }
 }
 function removeFromRecipeWatchlist(entryId){
   State.recipeWatchlist = State.recipeWatchlist.filter(x=>x.id!==entryId);
   storeSet('recipe-watchlist', State.recipeWatchlist, true);
   renderWatchlist();
+}
+
+/* ============================================================
+   CARNET DE CITATIONS (privé par groupe)
+   ============================================================ */
+function promptCitation(itemName, itemType){
+  State.pendingCitation = {itemName, itemType};
+  document.getElementById('citation-text').value = '';
+  document.getElementById('citation-prompt-label').textContent = 'Un mot pour se souvenir de "'+itemName+'" ?';
+  openSheet('sheet-citation-prompt');
+}
+async function saveCitation(){
+  const text = document.getElementById('citation-text').value.trim();
+  const pending = State.pendingCitation;
+  closeSheet('sheet-citation-prompt');
+  State.pendingCitation = null;
+  if(!text || !pending) return;
+  const entry = {
+    id: uid(), text,
+    itemName: pending.itemName, itemType: pending.itemType,
+    author: (State.profile && State.profile.name) || 'Anonyme',
+    createdAt: Date.now(),
+  };
+  State.carnetCitations.push(entry);
+  await storeSet('carnet-citations', State.carnetCitations, true);
+  showToast('Ajouté au carnet 📜');
+  renderCarnet();
+}
+function renderCarnet(){
+  const box = document.getElementById('carnet-body');
+  if(!box) return;
+  if(!State.carnetCitations.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">📜</span>Votre carnet est encore vide.<br>Chaque fois que vous cochez une sortie ou une recette comme faite, vous pourrez y laisser un mot.</div>';
+    return;
+  }
+  const sorted = State.carnetCitations.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  box.innerHTML = sorted.map(c=>{
+    const dateStr = new Date(c.createdAt).toLocaleDateString('fr-CH', {day:'numeric', month:'long', year:'numeric'});
+    return '<div style="padding:14px 0; border-bottom:1px solid var(--line); position:relative;">'+
+      '<button class="remove-x" data-del="'+c.id+'" style="position:absolute; top:12px; right:0;">✕</button>'+
+      '<p style="font-family:var(--font-display); font-size:16.5px; font-style:italic; margin:0 6px 8px 0; line-height:1.45; padding-right:28px;">«\u00a0'+escapeHtml(c.text)+'\u00a0»</p>'+
+      '<div class="hint" style="margin:0;">'+(c.itemType==='recette'?'🍳':'📌')+' '+escapeHtml(c.itemName)+' · '+dateStr+' · '+escapeHtml(c.author)+'</div>'+
+    '</div>';
+  }).join('');
+  box.querySelectorAll('[data-del]').forEach(b=>{
+    b.onclick = ()=>deleteCitation(b.dataset.del);
+  });
+}
+async function deleteCitation(id){
+  if(!confirm('Supprimer ce mot du carnet ?')) return;
+  State.carnetCitations = State.carnetCitations.filter(x=>x.id!==id);
+  await storeSet('carnet-citations', State.carnetCitations, true);
+  renderCarnet();
 }
 function renderWatchlist(){
   const box = document.getElementById('watchlist-list');
@@ -2835,6 +2931,9 @@ async function startApp(){
     await fbauth.signOut();
     location.reload();
   };
+  document.getElementById('btn-open-carnet').onclick = ()=>{ renderCarnet(); openSheet('sheet-carnet'); };
+  document.getElementById('btn-citation-skip').onclick = ()=>{ closeSheet('sheet-citation-prompt'); State.pendingCitation = null; };
+  document.getElementById('btn-citation-save').onclick = saveCitation;
   document.getElementById('btn-export').onclick = exportBackup;
   document.getElementById('btn-import').onclick = ()=>document.getElementById('import-file-input').click();
   document.getElementById('import-file-input').addEventListener('change', importBackupFile);
@@ -2983,6 +3082,7 @@ async function startApp(){
   fbdb.ref(fbPath('recipes-index', true)).on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('recipe-watchlist', true)).on('value', snap=>{ State.recipeWatchlist = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('links', true)).on('value', snap=>{ State.links = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('carnet-citations', true)).on('value', snap=>{ State.carnetCitations = snap.val() || []; renderCarnet(); });
   fbdb.ref(fbPath('custom-options', true)).on('value', snap=>{
     const v = snap.val();
     if(v){ State.customMeteos = v.meteos||[]; State.customDurees = v.durees||[]; State.customCategories = v.categories||[]; }
