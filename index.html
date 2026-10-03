@@ -1139,6 +1139,36 @@ const SEED_BALADES = [
   ["Chasseral","Nods","Berne","Suisse","rando"],
 ];
 
+// Liste personnelle de Cyril — chaque lieu vérifié et classé un par un
+const SEED_PERSO_CYRIL = [
+  ["Visite Ricola","Laufen","Bâle-Campagne","Suisse","culture"],
+  ["Visite Kambly","Trubschachen","Berne","Suisse","culture"],
+  ["Centre de tri postal de la Poste (Daillens)","Daillens","Vaud","Suisse","culture"],
+  ["Train panoramique MOB (Montreux-Oberland Bernois)","Montreux","Vaud","Suisse","insolite"],
+  ["Corminboeuf – au fil de l'eau (sentier du Dragon bleu)","Corminboeuf","Fribourg","Suisse","rando"],
+  ["Gorges du Gottéron","Fribourg","Fribourg","Suisse","rando"],
+  ["Observatoire astronomique d'Épendes","Épendes","Fribourg","Suisse","culture"],
+  ["Le Gibloux","Farvagny","Fribourg","Suisse","rando"],
+  ["Jardins Extraordinaires d'Evologia","Cressier","Neuchâtel","Suisse","parc"],
+  ["Sentier de Galmeline (wallabies, forêt de Galm)","Jeuss","Fribourg","Suisse","parc"],
+  ["Centre nature La Sauge (BirdLife)","Cudrefin","Vaud","Suisse","parc"],
+  ["Barrage de la Grande Dixence","Hérémence","Valais","Suisse","lac"],
+  ["Passerelle à Farinet","Saillon","Valais","Suisse","rando"],
+  ["Sentier des Narcisses","Montreux","Vaud","Suisse","rando"],
+  ["Stock Armée — vente de surplus militaire (Automnales, annuel début nov.)","Le Grand-Saconnex","Genève","Suisse","shopping"],
+  ["Loto","Fribourg","Fribourg","Suisse","insolite","Idée sans lieu précis — épingle posée à Fribourg par défaut, à déplacer si besoin."],
+  ["Bivouac","Fribourg","Fribourg","Suisse","insolite","Idée sans lieu précis — épingle posée à Fribourg par défaut, à déplacer si besoin."],
+  ["Mini-golf du Jura","Fribourg","Fribourg","Suisse","sport"],
+  ["Fribowling","Fribourg","Fribourg","Suisse","sport"],
+  ["Arena Cinemas Fribourg","Fribourg","Fribourg","Suisse","culture"],
+  ["Laténium","Hauterive","Neuchâtel","Suisse","musee"],
+  ["Musée des Transports (Verkehrshaus)","Lucerne","Lucerne","Suisse","musee"],
+  ["Villa \"Le Lac\" (Le Corbusier)","Corseaux","Vaud","Suisse","musee"],
+  ["CIMA – Musée de la mécanique d'art","Sainte-Croix","Vaud","Suisse","musee"],
+  ["Electrobroc","Broc","Fribourg","Suisse","musee"],
+  ["Clin d'Ailes – Musée de l'aviation militaire","Payerne","Vaud","Suisse","musee"],
+];
+
 function guessCategories(name){
   const n = name.toLowerCase();
   const cats = [];
@@ -1615,6 +1645,7 @@ async function importSeedIfNeeded(){
     {list: SEED_BISSES, forceCategory: 'rando'},
     {list: SEED_GOOGLE_LIST, forceCategory: null}, // catégorie propre à chaque ligne (5e élément)
     {list: SEED_BALADES, forceCategory: null},
+    {list: SEED_PERSO_CYRIL, forceCategory: null},
   ];
   const existingNames = new Set(State.activities.map(a=>(a.name||'').trim().toLowerCase()));
   const missing = [];
@@ -1632,7 +1663,7 @@ async function importSeedIfNeeded(){
   updateImportBanner();
   let batch = [];
   for(const {entry, forceCategory} of missing){
-    const [name, ville, canton, pays, ownCategory] = entry;
+    const [name, ville, canton, pays, ownCategory, ownNote] = entry;
     if(State.importCancelled) break;
     const loc = await geocodeOne(ville, canton, pays);
     if(loc){
@@ -1640,7 +1671,7 @@ async function importSeedIfNeeded(){
       batch.push({
         id: uid(), name, lat:loc.lat, lng:loc.lng, categories:cats,
         saisons: guessSaisons(name), durees:['demi'], meteos:[guessMeteo(cats)],
-        canton: canton+(pays!=='Suisse'?(' — '+pays):''), notes:'',
+        canton: canton+(pays!=='Suisse'?(' — '+pays):''), notes: ownNote||'',
         addedBy:'Import du guide', createdAt: Date.now(), reviews: []
       });
     }
@@ -2032,6 +2063,8 @@ const SEED_RECIPES = [
   {title:'Toast burger, avocat, œuf', tags:['plat'], times:[], ingredients:[], steps:[]},
   {title:'Streusel', tags:['plat'], times:[], ingredients:[], steps:[]},
   {title:'Burger noisette', tags:['plat'], times:[], ingredients:[], steps:[]},
+  {title:'Mousse spéculoos', tags:['dessert'], times:[], ingredients:[], steps:[]},
+  {title:'Charlotte (moule d\'Anne)', tags:['dessert'], times:[], ingredients:[], steps:[]},
 ];
 async function seedDefaultRecipesIfNeeded(){
   const existingTitles = new Set(State.recipesIndex.map(r=>(r.title||'').trim().toLowerCase()));
