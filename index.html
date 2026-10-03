@@ -19,13 +19,13 @@
   --paper-3:#F5F0E4;
   --ink:#1F2E23;
   --ink-soft:#52604F;
-  --ink-faint:#8A8368;
+  --ink-faint:#67624E;
   --trail:#B5651D;
   --trail-dark:#8f4f16;
   --lake:#2C5F5D;
   --lake-dark:#204442;
   --gold:#C79A2E;
-  --line:#C9BFA6;
+  --line:#897A53;
   --danger:#9C3B2E;
   --font-display: 'Iowan Old Style','Palatino Linotype', Palatino, Georgia, serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
@@ -118,12 +118,6 @@ main{flex:1 1 auto; position:relative; min-height:0;}
   border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 2px 6px rgba(0,0,0,.12);
 }
 .map-fabs{position:absolute; right:12px; bottom:16px; z-index:10; display:flex; flex-direction:column; gap:10px; align-items:flex-end;}
-#import-banner{
-  position:absolute; left:10px; right:10px; bottom:16px; z-index:10; background:var(--ink); color:var(--paper-3);
-  border-radius:12px; padding:10px 14px; font-size:12.5px; box-shadow:0 3px 10px rgba(0,0,0,.25);
-}
-#import-banner .bar{height:5px; background:rgba(255,255,255,.2); border-radius:3px; margin-top:6px; overflow:hidden;}
-#import-banner .bar-fill{height:100%; background:var(--trail); width:0%; transition:width .3s;}
 .fab{
   background:var(--ink); color:var(--paper-3); border:none; border-radius:22px; padding:11px 16px; font-size:14px;
   display:flex; align-items:center; gap:6px; box-shadow:0 3px 10px rgba(0,0,0,.25);
@@ -148,14 +142,14 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 .popup-meta{font-size:12px; color:var(--ink-soft); margin-bottom:6px;}
 .popup-actions{display:flex; gap:6px; margin-top:6px;}
 .popup-actions button{font-size:12px; padding:6px 8px; border-radius:7px; border:1px solid var(--line); background:var(--paper); color:var(--ink);}
-.popup-actions button.primary{background:var(--trail); color:#fff; border-color:var(--trail);}
+.popup-actions button.primary{background:var(--trail-dark); color:#fff; border-color:var(--trail-dark);}
 
 /* ============ LISTS (repertoire / watchlists) ============ */
 .list-header{padding:calc(12px + 0px) 16px 8px; background:var(--paper); border-bottom:1px solid var(--line); flex:0 0 auto;}
 .list-header h2{margin:0 0 8px; font-size:20px;}
 .search-row{display:flex; gap:8px;}
 .search-row input[type=text]{flex:1; padding:10px 12px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3);}
-.icon-btn{width:40px; height:40px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); font-size:16px;}
+.icon-btn{width:44px; height:44px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); font-size:16px;}
 .icon-btn.has-filters{border-color:var(--trail); color:var(--trail-dark);}
 .scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 16px 24px;}
 .empty-state{padding:40px 16px; text-align:center; color:var(--ink-soft);}
@@ -187,7 +181,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 .check-row{display:flex; align-items:center; gap:10px;}
 .check-circle{width:26px; height:26px; border-radius:50%; border:2px solid var(--line); flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:14px; background:var(--paper-3);}
 .check-circle.done{background:var(--lake); border-color:var(--lake); color:#fff;}
-.remove-x{background:none; border:none; color:var(--ink-faint); font-size:18px; padding:4px 6px;}
+.remove-x{background:none; border:none; color:var(--ink-faint); font-size:18px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
 
 /* ============ CHIPS ============ */
 .chip-group{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;}
@@ -212,7 +206,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 .sheet-grip{width:36px; height:4px; background:var(--line); border-radius:3px; margin:9px auto 2px;}
 .sheet-head{display:flex; align-items:center; justify-content:space-between; padding:6px 18px 10px; border-bottom:1px solid var(--line);}
 .sheet-head h3{margin:0; font-size:18px;}
-.sheet-head .close-x{background:none; border:none; font-size:20px; color:var(--ink-soft); padding:4px 6px;}
+.sheet-head .close-x{background:none; border:none; font-size:20px; color:var(--ink-soft); width:44px; height:44px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
 .sheet-body{padding:14px 18px 24px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
 .sheet-body.pad-safe{padding-bottom:calc(24px + var(--safe-b));}
 
@@ -236,7 +230,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 
 .btn-row{display:flex; gap:10px; margin-top:6px;}
 .btn{flex:1; padding:12px; border-radius:10px; border:1px solid var(--line); background:var(--paper-3); color:var(--ink); font-size:15px; font-weight:600;}
-.btn.primary{background:var(--trail); border-color:var(--trail); color:#fff;}
+.btn.primary{background:var(--trail-dark); border-color:var(--trail-dark); color:#fff;}
 .btn.danger-outline{border-color:var(--danger); color:var(--danger); background:var(--paper-3);}
 .btn.ghost{background:none; border:none; color:var(--ink-soft); font-weight:500;}
 
@@ -346,7 +340,6 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <button class="fab filter-fab" id="btn-open-filters">⚙️ Filtrer</button>
         <button class="fab surprise-fab" id="btn-surprise">🎲 Surprends-nous</button>
       </div>
-      <div id="import-banner" style="display:none;"></div>
     </section>
 
     <!-- ===== REPERTOIRE ===== -->
@@ -442,7 +435,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <button class="btn primary" id="btn-export" style="width:100%;">📤 Exporter mes données</button>
         <div class="hint" id="export-count" style="margin-top:8px;"></div>
         <button class="btn" id="btn-import" style="width:100%; margin-top:10px;">📥 Restaurer depuis une sauvegarde</button>
-        <input type="file" accept="application/json,.json" id="import-file-input" style="display:none;">
+        <input type="file" accept="application/json,.json" id="import-file-input" aria-label="Choisir un fichier de sauvegarde à restaurer" style="display:none;">
       </div>
     </div>
   </div>
@@ -636,7 +629,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
       </div>
       <div class="field">
         <label>Photos (jusqu'à 3)</label>
-        <input type="file" accept="image/*" id="rf-photo-input" multiple>
+        <input type="file" accept="image/*" id="rf-photo-input" aria-label="Ajouter des photos à la recette" multiple>
         <div id="rf-photo-preview" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
       </div>
       <div class="field">
@@ -1588,16 +1581,8 @@ async function geocodeOne(ville, canton, pays){
   return null;
 }
 function updateImportBanner(){
-  const el = document.getElementById('import-banner');
-  if(!State.importing){ el.style.display='none'; return; }
-  el.style.display='block';
-  const pct = State.importTotal ? Math.round(State.importDone/State.importTotal*100) : 0;
-  el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">'+
-      '<span>📍 Ajout de lieux du guide… ('+State.importDone+'/'+State.importTotal+')</span>'+
-      '<button id="import-dismiss" style="background:none;border:none;color:var(--paper-3);font-size:17px;padding:2px 4px;flex:0 0 auto;">✕</button>'+
-    '</div>'+
-    '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>';
-  document.getElementById('import-dismiss').onclick = ()=>{ State.importCancelled = true; State.importing = false; updateImportBanner(); };
+  // L'import des lieux du guide se fait maintenant silencieusement en arrière-plan,
+  // sans bandeau qui reste affiché à l'écran — seul un petit message apparaît à la fin.
 }
 async function importSeedIfNeeded(){
   // Import "intelligent" : on ne traite que les lieux qui ne sont pas déjà enregistrés
@@ -1954,7 +1939,7 @@ function renderWatchlist(){
       const row = document.createElement('div');
       row.className='activity-row';
       const thumbHtml = r.thumb
-        ? '<img src="'+r.thumb+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
+        ? '<img src="'+r.thumb+'" alt="Photo de la recette '+escapeHtml(r.title||"")+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
         : '<div class="cat-badge">'+(tag?tag.emoji:'🍳')+'</div>';
       row.innerHTML = thumbHtml+
         '<div class="info" style="cursor:pointer;">'+
@@ -2373,7 +2358,7 @@ function renderRecipes(){
     const row = document.createElement('div');
     row.className='activity-row';
     const thumbHtml = r.thumb
-      ? '<img src="'+r.thumb+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
+      ? '<img src="'+r.thumb+'" alt="Photo de la recette '+escapeHtml(r.title||"")+'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--line);flex:0 0 auto;">'
       : '<div class="cat-badge">'+(tag?tag.emoji:'🍳')+'</div>';
     row.innerHTML = thumbHtml+
       '<div class="info">'+
@@ -2398,7 +2383,7 @@ async function openRecipeDetail(id){
   html += '<div class="tag-row">'+(full.tags||[]).map(tid=>{ const t=RECIPE_TAGS.find(x=>x.id===tid); return t?'<span class="tag">'+t.emoji+' '+t.label+'</span>':''; }).join('')+'</div>';
   if(full.photos && full.photos.length){
     html += '<div style="display:flex; gap:8px; overflow-x:auto; margin:10px 0; padding-bottom:4px;">'+
-      full.photos.map(p=>'<img src="'+p+'" style="height:150px;border-radius:10px;border:1px solid var(--line); flex:0 0 auto;">').join('')+
+      full.photos.map((p,i)=>'<img src="'+p+'" alt="Photo '+(i+1)+' de la recette '+escapeHtml(full.title||"")+'" style="height:150px;border-radius:10px;border:1px solid var(--line); flex:0 0 auto;">').join('')+
       '</div>';
   }
   if(full.times && full.times.length){
@@ -2588,8 +2573,8 @@ function renderPhotoPreview(){
   const box = document.getElementById('rf-photo-preview');
   box.innerHTML = State.recipePhotos.map((p,i)=>
     '<div style="position:relative;">'+
-      '<img src="'+p+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">'+
-      '<button data-i="'+i+'" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;line-height:1;">✕</button>'+
+      '<img src="'+p+'" alt="Photo ajoutée '+(i+1)+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">'+
+      '<button data-i="'+i+'" style="position:absolute;top:-8px;right:-8px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;line-height:1;">✕</button>'+
     '</div>'
   ).join('');
   box.querySelectorAll('button').forEach(btn=>{
@@ -2798,7 +2783,7 @@ function doRecipeSurprise(typeId){
   const r = pool[Math.floor(Math.random()*pool.length)];
   const tag = r.tags && r.tags[0] ? RECIPE_TAGS.find(t=>t.id===r.tags[0]) : null;
   const stampHtml = r.thumb
-    ? '<img src="'+r.thumb+'" style="width:96px;height:96px;object-fit:cover;border-radius:16px;border:3px solid var(--ink); margin:6px auto 14px; display:block;">'
+    ? '<img src="'+r.thumb+'" alt="Photo de la recette '+escapeHtml(r.title||"")+'" style="width:96px;height:96px;object-fit:cover;border-radius:16px;border:3px solid var(--ink); margin:6px auto 14px; display:block;">'
     : '<div class="stamp">'+(tag?tag.emoji:'🍳')+'</div>';
   box.innerHTML = '<div class="surprise-card">'+
     stampHtml+
