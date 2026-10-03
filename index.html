@@ -381,6 +381,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <h2>Recettes</h2>
         <div class="search-row">
           <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
+          <button class="icon-btn" id="btn-seasonal" title="Fruits et légumes de saison">🌱</button>
           <button class="icon-btn" id="btn-recipe-surprise" title="Qu'est-ce qu'on mange ?">🎲</button>
           <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
         </div>
@@ -691,6 +692,22 @@ main{flex:1 1 auto; position:relative; min-height:0;}
     <div class="sheet-head"><h3>Qu'est-ce qu'on mange ?</h3><button class="close-x" data-close="sheet-recipe-surprise-pick">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="chip-group" id="recipe-surprise-types"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: de saison ===== -->
+<div class="sheet-overlay" id="sheet-seasonal">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3>🌱 De saison</h3><button class="close-x" data-close="sheet-seasonal">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px;">
+        <button class="icon-btn" id="seasonal-prev">◀︎</button>
+        <div id="seasonal-month-label" style="font-family:var(--font-display); font-size:19px; font-weight:700; min-width:110px; text-align:center;"></div>
+        <button class="icon-btn" id="seasonal-next">▶︎</button>
+      </div>
+      <div id="seasonal-body"></div>
     </div>
   </div>
 </div>
@@ -1163,6 +1180,7 @@ const State = {
   recipeWatchlist: [],
   links: [],
   editingLinkId: null,
+  seasonalMonth: new Date().getMonth()+1,
   carnetCitations: [],
   pendingCitation: null,
   userPos: null,        // {lat,lng}
@@ -1530,7 +1548,7 @@ function locateUser(){
     renderRepertoire(); // pour mettre à jour les distances
   }, err=>{
     if(err.code===1){ // PERMISSION_DENIED
-      showToast("Position bloquée ici. Si tu es dans l'aperçu Claude, ouvre le lien publié (••• → Publier) — ça marche mieux en dehors de l'aperçu.");
+      showToast("Position bloquée. Dans Réglages → Confidentialité → Service de localisation, autorise Safari (ou ton navigateur) à y accéder, puis réessaie.");
     } else {
       showToast("Position non disponible — tu peux entrer les lieux manuellement.");
     }
@@ -1649,6 +1667,166 @@ async function importSeedIfNeeded(){
 // Idées de recettes suggérées (écrites par mes soins, inspirées de proportions classiques
 // suisses pour ce type de biscuit) — ajoutées une seule fois, jamais si une recette du
 // même nom existe déjà (pour ne jamais écraser ce que vous avez créé vous-mêmes).
+// Calendrier des fruits/légumes/herbes/champignons de saison en Suisse — digitalisé
+// depuis le calendrier des saisons Swissmilk (source grand public, usage informatif).
+const SEASONAL_PRODUCE = [
+  {name:'Asperge', cat:'Légumes', months:[4, 5, 6]},
+  {name:'Aubergine', cat:'Légumes', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Bette à tondre', cat:'Légumes', months:[4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Betterave rouge', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Brocoli', cat:'Légumes', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Cardon', cat:'Légumes', months:[11]},
+  {name:'Carotte', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Carotte jaune', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Carottes nouvelles', cat:'Légumes', months:[5, 6, 7, 8]},
+  {name:'Céleri-branche', cat:'Légumes', months:[4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Céleri-rave', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Chou blanc', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Chou frisé', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Chou kale', cat:'Légumes', months:[1, 2, 10, 11, 12]},
+  {name:'Chou pointu', cat:'Légumes', months:[4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Chou romanesco', cat:'Légumes', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Chou rouge', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Chou-fleur', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Choux de Bruxelles', cat:'Légumes', months:[1, 10, 11, 12]},
+  {name:'Cima di rapa', cat:'Légumes', months:[1, 2, 3, 10, 11, 12]},
+  {name:'Colrave', cat:'Légumes', months:[5, 6, 7, 8, 9, 10, 11]},
+  {name:'Concombre', cat:'Légumes', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Côte de bette', cat:'Légumes', months:[5, 6, 7, 8, 9, 10, 11]},
+  {name:'Courge', cat:'Légumes', months:[1, 9, 10, 11, 12]},
+  {name:'Courgette', cat:'Légumes', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Courgette ronde', cat:'Légumes', months:[6, 7, 8, 9]},
+  {name:'Épinards', cat:'Légumes', months:[3, 4, 5, 6, 9, 10, 11]},
+  {name:'Fenouil', cat:'Légumes', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Haricot', cat:'Légumes', months:[6, 7, 8, 9, 10]},
+  {name:'Kalettes', cat:'Légumes', months:[1, 11, 12]},
+  {name:'Maïs doux', cat:'Légumes', months:[7, 8, 9]},
+  {name:'Navet', cat:'Légumes', months:[4, 5, 6, 9, 10]},
+  {name:'Navet d\'automne', cat:'Légumes', months:[1, 9, 10, 11, 12]},
+  {name:'Oignon', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Oignon nouveau', cat:'Légumes', months:[5, 6, 7, 8, 9]},
+  {name:'Pak-choï', cat:'Légumes', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Panais', cat:'Légumes', months:[1, 2, 3, 9, 10, 11, 12]},
+  {name:'Patate douce', cat:'Légumes', months:[8, 9, 10, 11]},
+  {name:'Pâtisson', cat:'Légumes', months:[6, 7, 8, 9]},
+  {name:'Petits pois', cat:'Légumes', months:[5, 6, 7]},
+  {name:'Poireau', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Pois mange-tout', cat:'Légumes', months:[5, 6, 7, 8]},
+  {name:'Poivron', cat:'Légumes', months:[6, 7, 8, 9, 10]},
+  {name:'Pommes de terre', cat:'Légumes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Pommes de terre nouvelles', cat:'Légumes', months:[5, 6, 7]},
+  {name:'Radis', cat:'Légumes', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Radis blanc', cat:'Légumes', months:[4, 5, 10, 11, 12]},
+  {name:'Rhubarbe', cat:'Légumes', months:[4, 5, 6]},
+  {name:'Rutabaga', cat:'Légumes', months:[1, 2, 3, 10, 11, 12]},
+  {name:'Salsifis', cat:'Légumes', months:[1, 2, 10, 11, 12]},
+  {name:'Tomate', cat:'Légumes', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Topinambour', cat:'Légumes', months:[1, 2, 3, 10, 11, 12]},
+  {name:'Batavia', cat:'Salades', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Catalogna', cat:'Salades', months:[6, 7, 8, 9, 10]},
+  {name:'Chicorée grumolo verte', cat:'Salades', months:[4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Chou chinois', cat:'Salades', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Endive', cat:'Salades', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Laitue', cat:'Salades', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Laitue feuille de chêne', cat:'Salades', months:[4, 5, 6, 7, 8, 9, 10]},
+  {name:'Laitue iceberg', cat:'Salades', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Laitue lollo', cat:'Salades', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Laitue pommée', cat:'Salades', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Pain de sucre', cat:'Salades', months:[1, 2, 9, 10, 11, 12]},
+  {name:'Pourpier', cat:'Salades', months:[4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Rampon (doucette)', cat:'Salades', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Roquette', cat:'Salades', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Rouge de Trévise', cat:'Salades', months:[1, 2, 10, 11, 12]},
+  {name:'Salade à tondre', cat:'Salades', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Scarole', cat:'Salades', months:[9, 10, 11]},
+  {name:'Airelles rouges', cat:'Fruits rouges', months:[8, 9]},
+  {name:'Baies de sureau', cat:'Fruits rouges', months:[8, 9]},
+  {name:'Cassis', cat:'Fruits rouges', months:[7]},
+  {name:'Fraises', cat:'Fruits rouges', months:[5, 6, 7, 8]},
+  {name:'Framboises', cat:'Fruits rouges', months:[6, 7, 8, 9, 10]},
+  {name:'Groseilles à maquereau', cat:'Fruits rouges', months:[6, 7]},
+  {name:'Mûres', cat:'Fruits rouges', months:[8, 9, 10]},
+  {name:'Myrtilles', cat:'Fruits rouges', months:[7, 8, 9]},
+  {name:'Raisinets', cat:'Fruits rouges', months:[6, 7]},
+  {name:'Abricots', cat:'Fruits', months:[7, 8]},
+  {name:'Cerises', cat:'Fruits', months:[6, 7]},
+  {name:'Coings', cat:'Fruits', months:[9, 10]},
+  {name:'Mirabelles', cat:'Fruits', months:[8]},
+  {name:'Nectarines', cat:'Fruits', months:[7, 8]},
+  {name:'Pêches', cat:'Fruits', months:[7, 8]},
+  {name:'Poires', cat:'Fruits', months:[2, 3, 8, 9, 10, 11, 12]},
+  {name:'Pruneaux', cat:'Fruits', months:[8, 9]},
+  {name:'Prunes', cat:'Fruits', months:[8, 9]},
+  {name:'Raisin', cat:'Fruits', months:[9, 10]},
+  {name:'Reines-claudes', cat:'Fruits', months:[8]},
+  {name:'Boskoop', cat:'Pommes', months:[1, 2, 3, 4, 5, 9, 10, 11, 12]},
+  {name:'Braeburn', cat:'Pommes', months:[1, 2, 3, 4, 5, 10, 11, 12]},
+  {name:'Cox Orange', cat:'Pommes', months:[1, 2, 9, 10, 11, 12]},
+  {name:'Elstar', cat:'Pommes', months:[1, 2, 3, 9, 10, 11, 12]},
+  {name:'Gala', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12]},
+  {name:'Golden Delicious', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Gravenstein', cat:'Pommes', months:[8, 9]},
+  {name:'Idared', cat:'Pommes', months:[1, 2, 3, 4, 9, 10, 11, 12]},
+  {name:'Jazz', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 10, 11, 12]},
+  {name:'Jonagold', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Kanzi', cat:'Pommes', months:[1, 2, 3, 9, 10, 11, 12]},
+  {name:'Maigold', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]},
+  {name:'Mairac', cat:'Pommes', months:[1, 2, 9, 10, 11, 12]},
+  {name:'Milwa (Diwa)', cat:'Pommes', months:[1, 2, 3, 4, 5, 9, 10, 11, 12]},
+  {name:'Pink Lady', cat:'Pommes', months:[1, 2, 3, 4, 5, 6, 10, 11, 12]},
+  {name:'Pomme cloche', cat:'Pommes', months:[1, 2, 3, 4, 5, 9, 10, 11, 12]},
+  {name:'Rose de Berne', cat:'Pommes', months:[8, 9, 10]},
+  {name:'Rubinette', cat:'Pommes', months:[1, 8, 9]},
+  {name:'Sauergrauech', cat:'Pommes', months:[8, 9, 10]},
+  {name:'Summerred', cat:'Pommes', months:[8, 9]},
+  {name:'Topaz', cat:'Pommes', months:[1, 2, 3, 9, 10, 11, 12]},
+  {name:'Transparente Blanche', cat:'Pommes', months:[7]},
+  {name:'Ail des ours', cat:'Herbes & fleurs', months:[3, 4]},
+  {name:'Aneth', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Aspérule odorante', cat:'Herbes & fleurs', months:[4, 5]},
+  {name:'Basilic', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Bourrache', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9]},
+  {name:'Cerfeuil', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Ciboulette', cat:'Herbes & fleurs', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Cresson alénois', cat:'Herbes & fleurs', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Cresson de fontaine', cat:'Herbes & fleurs', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]},
+  {name:'Estragon', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Fleur de capucine', cat:'Herbes & fleurs', months:[6, 7, 8, 9, 10]},
+  {name:'Fleur de sureau', cat:'Herbes & fleurs', months:[5, 6]},
+  {name:'Fleur de tilleul', cat:'Herbes & fleurs', months:[6, 7]},
+  {name:'Hysope', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Livèche', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Marjolaine', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Mélisse', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Menthe', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Origan', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Ortie', cat:'Herbes & fleurs', months:[3, 4, 5, 6]},
+  {name:'Oseille', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10]},
+  {name:'Pâquerette vivace', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10]},
+  {name:'Pélargonium', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Pensée', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Persil', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Pétales de rose', cat:'Herbes & fleurs', months:[6, 7]},
+  {name:'Pissenlit', cat:'Herbes & fleurs', months:[4, 5]},
+  {name:'Romarin', cat:'Herbes & fleurs', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Sarriette', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Sauge', cat:'Herbes & fleurs', months:[3, 4, 5, 6, 7, 8, 9, 10, 11]},
+  {name:'Souci', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9, 10]},
+  {name:'Thym', cat:'Herbes & fleurs', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Verveine', cat:'Herbes & fleurs', months:[5, 6, 7, 8, 9]},
+  {name:'Violette', cat:'Herbes & fleurs', months:[3, 4, 5]},
+  {name:'Bolet (cèpe)', cat:'Champignons', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Champignon de Paris', cat:'Champignons', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Chanterelle', cat:'Champignons', months:[6, 7, 8, 9, 10, 11]},
+  {name:'Corne d\'abondance', cat:'Champignons', months:[9, 10, 11]},
+  {name:'Morille', cat:'Champignons', months:[3, 4, 5]},
+  {name:'Pleurote', cat:'Champignons', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Pleurote du panicaut', cat:'Champignons', months:[9, 10]},
+  {name:'Shiitake', cat:'Champignons', months:[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
+  {name:'Truffe blanche', cat:'Champignons', months:[10, 11, 12]},
+  {name:'Truffe noire', cat:'Champignons', months:[1, 2, 3, 11, 12]},
+];
+
 const SEED_RECIPES = [
   {
     title: "Cookies aux pépites de chocolat",
@@ -2980,6 +3158,30 @@ function doRecipeSurprise(typeId){
   openSheet('sheet-recipe-surprise');
 }
 
+const MONTH_NAMES = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+function renderSeasonal(){
+  const m = State.seasonalMonth;
+  document.getElementById('seasonal-month-label').textContent = MONTH_NAMES[m];
+  const box = document.getElementById('seasonal-body');
+  const items = SEASONAL_PRODUCE.filter(p=>p.months.includes(m));
+  const order = ['Légumes','Salades','Fruits','Fruits rouges','Pommes','Herbes & fleurs','Champignons'];
+  const byCat = {};
+  items.forEach(p=>{ (byCat[p.cat] = byCat[p.cat]||[]).push(p.name); });
+  if(!items.length){ box.innerHTML = '<div class="empty-state">Rien à afficher.</div>'; return; }
+  box.innerHTML = order.filter(c=>byCat[c]).map(c=>
+    '<div style="margin-bottom:16px;">'+
+      '<div class="hint" style="font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">'+c+'</div>'+
+      '<div class="chip-group">'+byCat[c].sort((a,b)=>a.localeCompare(b,'fr')).map(n=>'<span class="chip" style="cursor:default;">'+escapeHtml(n)+'</span>').join('')+
+      '</div>'+
+    '</div>'
+  ).join('');
+}
+function openSeasonal(){
+  State.seasonalMonth = new Date().getMonth()+1;
+  renderSeasonal();
+  openSheet('sheet-seasonal');
+}
+
 /* ============================================================
    NAVIGATION
    ============================================================ */
@@ -3171,6 +3373,9 @@ async function startApp(){
     const b = chip(rtf, t, false);
     b.onclick = ()=>{ toggleIn(State.recipeFilterTags, t.id); b.classList.toggle('selected'); renderRecipes(); };
   });
+  document.getElementById('btn-seasonal').onclick = openSeasonal;
+  document.getElementById('seasonal-prev').onclick = ()=>{ State.seasonalMonth = State.seasonalMonth===1 ? 12 : State.seasonalMonth-1; renderSeasonal(); };
+  document.getElementById('seasonal-next').onclick = ()=>{ State.seasonalMonth = State.seasonalMonth===12 ? 1 : State.seasonalMonth+1; renderSeasonal(); };
   document.getElementById('btn-recipe-surprise').onclick = openRecipeSurprisePicker;
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
   document.getElementById('link-search').addEventListener('input', renderLinks);
