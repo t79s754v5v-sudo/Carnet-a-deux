@@ -451,6 +451,15 @@ main{flex:1 1 auto; position:relative; min-height:0;}
   </div>
 </div>
 
+<!-- ===== SHEET: photos d'un article ===== -->
+<div class="sheet-overlay" id="sheet-article-photos">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="article-photos-title">Photos</h3><button class="close-x" data-close="sheet-article-photos">✕</button></div>
+    <div class="sheet-body pad-safe" id="article-photos-body"></div>
+  </div>
+</div>
+
 <!-- ===== SHEET: article ===== -->
 <div class="sheet-overlay" id="sheet-article-form">
   <div class="sheet">
@@ -468,6 +477,11 @@ main{flex:1 1 auto; position:relative; min-height:0;}
       <div class="field">
         <label for="af-notes">Pourquoi on le lit ? (optionnel)</label>
         <textarea id="af-notes" placeholder="Une idée de sortie, une recette, un bon plan…"></textarea>
+      </div>
+      <div class="field">
+        <label for="af-photo-input">Photos (jusqu'à 3)</label>
+        <input type="file" accept="image/*" id="af-photo-input" aria-label="Ajouter des photos à l'article" multiple>
+        <div id="af-photo-preview" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
       </div>
       <div class="btn-row">
         <button class="btn danger-outline" id="btn-delete-article" style="display:none;">Supprimer</button>
@@ -1242,6 +1256,9 @@ const State = {
   links: [],
   editingLinkId: null,
   articles: [],
+  articlePhotos: [],
+  articlePhotosReady: true,
+  articlePhotosFailed: false,
   editingArticleId: null,
   lkTab: 'liens',
   seasonalMonth: new Date().getMonth()+1,
@@ -1325,7 +1342,7 @@ function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
 const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links', 'articles', 'carnet-citations']);
 function fbPath(key, shared){
   if(shared){
-    if(GROUP_SCOPED_KEYS.has(key)) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
+    if(GROUP_SCOPED_KEYS.has(key) || String(key).indexOf('article-photos:')===0) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
     return 'shared/'+key;
   }
   const uid = fbauth.currentUser ? fbauth.currentUser.uid : 'anonyme';
@@ -3191,10 +3208,13 @@ function renderArticles(){
     const domain = domainOf(a.url);
     const row = document.createElement('div');
     row.className='activity-row';
-    row.innerHTML = '<div class="cat-badge">📰</div>'+
+    const badge = a.thumb
+      ? '<button class="cat-badge" data-photos="'+a.id+'" aria-label="Voir les photos de l\'article" style="width:44px;height:44px;padding:0;overflow:hidden;border:1px solid var(--line);cursor:pointer;"><img src="'+a.thumb+'" alt="Photo de l\'article '+escapeHtml(a.title||'')+'" style="width:100%;height:100%;object-fit:cover;display:block;"></button>'
+      : '<div class="cat-badge">📰</div>';
+    row.innerHTML = badge+
       '<div class="info" style="cursor:pointer;">'+
         '<p class="name" style="'+(a.read?'text-decoration:line-through;color:var(--ink-faint);':'')+'">'+escapeHtml(a.title || domain)+'</p>'+
-        '<div class="meta"><span>'+escapeHtml(domain)+'</span>'+(a.addedBy?'<span>par '+escapeHtml(a.addedBy)+'</span>':'')+(a.read?'<span>lu ✓</span>':'')+'</div>'+
+        '<div class="meta"><span>'+escapeHtml(domain)+'</span>'+(a.addedBy?'<span>par '+escapeHtml(a.addedBy)+'</span>':'')+(a.read?'<span>lu ✓</span>':'')+(a.photoCount?'<span>📷 '+a.photoCount+'</span>':'')+'</div>'+
         (a.notes?'<div class="meta"><span>'+escapeHtml(a.notes)+'</span></div>':'')+
       '</div>'+
       '<div class="check-row">'+
@@ -3202,6 +3222,8 @@ function renderArticles(){
         '<button class="remove-x" data-edit="'+a.id+'" title="Modifier" aria-label="Modifier">✏️</button>'+
       '</div>';
     row.querySelector('.info').onclick = ()=>{ window.open(a.url, '_blank', 'noopener'); };
+    const pb = row.querySelector('[data-photos]');
+    if(pb) pb.onclick = (ev)=>{ ev.stopPropagation(); openArticlePhotos(a); };
     row.querySelector('[data-read]').onclick = (ev)=>{ ev.stopPropagation(); toggleArticleRead(a.id); };
     row.querySelector('[data-edit]').onclick = (ev)=>{ ev.stopPropagation(); openArticleForm(a); };
     box.appendChild(row);
@@ -3214,7 +3236,65 @@ function openArticleForm(existing){
   document.getElementById('af-title').value = existing ? (existing.title||'') : '';
   document.getElementById('af-url').value = existing ? (existing.url||'') : '';
   document.getElementById('af-notes').value = existing ? (existing.notes||'') : '';
+  document.getElementById('af-photo-input').value = '';
+  State.articlePhotos = [];
+  State.articlePhotosReady = true;
+  State.articlePhotosFailed = false;
+  renderArticlePhotoPreview();
   openSheet('sheet-article-form');
+  // Les photos sont stockées à part : on les charge à l'ouverture
+  if(existing && existing.photoCount){
+    State.articlePhotosReady = false;
+    const id = existing.id;
+    storeGet('article-photos:'+id, true).then(ph=>{
+      if(State.editingArticleId!==id) return;
+      State.articlePhotos = Array.isArray(ph) ? ph : [];
+      State.articlePhotosFailed = !Array.isArray(ph);
+      if(State.articlePhotosFailed) showToast('Photos non chargées : elles seront conservées telles quelles.');
+      State.articlePhotosReady = true;
+      renderArticlePhotoPreview();
+    }).catch(()=>{ State.articlePhotosReady = true; showToast('Photos non chargées.'); });
+  }
+}
+function renderArticlePhotoPreview(){
+  const box = document.getElementById('af-photo-preview');
+  if(!box) return;
+  if(!State.articlePhotosReady){ box.innerHTML = '<span class="hint">Chargement des photos…</span>'; return; }
+  box.innerHTML = State.articlePhotos.map((p,i)=>
+    '<div style="position:relative;">'+
+      '<img src="'+p+'" alt="Photo ajoutée '+(i+1)+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">'+
+      '<button data-i="'+i+'" aria-label="Retirer la photo '+(i+1)+'" style="position:absolute;top:-8px;right:-8px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;line-height:1;">✕</button>'+
+    '</div>'
+  ).join('');
+  box.querySelectorAll('button').forEach(btn=>{
+    btn.onclick = ()=>{ State.articlePhotos.splice(parseInt(btn.dataset.i,10),1); renderArticlePhotoPreview(); };
+  });
+}
+async function handleArticlePhotoInput(e){
+  const files = Array.from(e.target.files||[]);
+  for(const f of files){
+    if(State.articlePhotos.length>=3){ showToast('Maximum 3 photos par article.'); break; }
+    try{
+      const raw = await readFileAsDataUrl(f);
+      const compressed = await shrinkImage(raw, 1000, 0.7);
+      if(compressed) State.articlePhotos.push(compressed);
+    }catch(err){ showToast("Une photo n'a pas pu être chargée."); }
+  }
+  renderArticlePhotoPreview();
+  e.target.value='';
+}
+async function openArticlePhotos(a){
+  const body = document.getElementById('article-photos-body');
+  document.getElementById('article-photos-title').textContent = a.title || 'Photos';
+  body.innerHTML = '<div class="hint">Chargement…</div>';
+  openSheet('sheet-article-photos');
+  try{
+    const ph = await storeGet('article-photos:'+a.id, true);
+    const list = Array.isArray(ph) ? ph : [];
+    body.innerHTML = list.length
+      ? list.map((p,i)=>'<img src="'+p+'" alt="Photo '+(i+1)+' de l\'article '+escapeHtml(a.title||'')+'" style="width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:10px;display:block;">').join('')
+      : '<div class="empty-state">Aucune photo.</div>';
+  }catch(e){ body.innerHTML = '<div class="empty-state">Photos indisponibles pour le moment.</div>'; }
 }
 async function saveArticle(){
   let url = document.getElementById('af-url').value.trim();
@@ -3222,15 +3302,22 @@ async function saveArticle(){
   if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
   const title = document.getElementById('af-title').value.trim();
   const notes = document.getElementById('af-notes').value.trim();
+  if(!State.articlePhotosReady){ showToast('Les photos se chargent, patiente une seconde…'); return; }
   const id = State.editingArticleId || uid();
   const idx = State.articles.findIndex(x=>x.id===id);
   const old = idx>=0 ? State.articles[idx] : null;
-  const entry = {id, title, url, notes,
+  const keepOldPhotos = State.articlePhotosFailed && !State.articlePhotos.length && old && old.photoCount;
+  const photos = State.articlePhotos.slice();
+  const thumb = keepOldPhotos ? old.thumb : (photos.length ? await shrinkImage(photos[0], 160, 0.55) : null);
+  const entry = {id, title, url, notes, thumb, photoCount: keepOldPhotos ? old.photoCount : photos.length,
     read: old ? !!old.read : false,
     readAt: old ? (old.readAt||null) : null,
     createdAt: old ? (old.createdAt||Date.now()) : Date.now(),
     addedBy: old ? (old.addedBy||'Anonyme') : ((State.profile&&State.profile.name)||'Anonyme')};
   if(idx>=0) State.articles[idx] = entry; else State.articles.push(entry);
+  if(keepOldPhotos){ /* on ne touche à rien */ }
+  else if(photos.length) await storeSet('article-photos:'+id, photos, true);
+  else if(old && old.photoCount) await storeDelete('article-photos:'+id, true);
   await storeSet('articles', State.articles, true);
   closeSheet('sheet-article-form');
   showToast('Article enregistré ✓');
@@ -3247,7 +3334,9 @@ async function toggleArticleRead(id){
 async function deleteArticle(){
   if(!State.editingArticleId) return;
   if(!confirm('Supprimer cet article ?')) return;
-  State.articles = State.articles.filter(x=>x.id!==State.editingArticleId);
+  const delId = State.editingArticleId;
+  State.articles = State.articles.filter(x=>x.id!==delId);
+  await storeDelete('article-photos:'+delId, true);
   await storeSet('articles', State.articles, true);
   closeSheet('sheet-article-form');
   showToast('Article supprimé');
@@ -3565,6 +3654,7 @@ async function startApp(){
   document.getElementById('link-search').addEventListener('input', ()=>{ renderLinks(); renderArticles(); });
   document.getElementById('btn-add-link').onclick = ()=>{ if(State.lkTab==='articles') openArticleForm(null); else openLinkForm(null); };
   document.getElementById('btn-save-article').onclick = saveArticle;
+  document.getElementById('af-photo-input').addEventListener('change', handleArticlePhotoInput);
   document.getElementById('btn-delete-article').onclick = deleteArticle;
   document.querySelectorAll('.subtabs [data-lk]').forEach(b=>{ b.onclick = ()=>setLinksTab(b.dataset.lk); });
   document.getElementById('btn-save-link').onclick = saveLink;
