@@ -295,10 +295,10 @@ main{flex:1 1 auto; position:relative; min-height:0;}
     <div style="font-size:14px; line-height:1.7; color:var(--ink);">
       <p style="margin:0 0 10px;">🗺️ <strong>Carte</strong> — cherchez un lieu en haut, touchez une suggestion pour l'ajouter directement.</p>
       <p style="margin:0 0 10px;">📖 <strong>Répertoire</strong> — tous les lieux enregistrés, triables par distance, note ou alphabet.</p>
-      <p style="margin:0 0 10px;">＋ <strong>Ajouter</strong> — s'adapte à l'onglet où vous êtes : activité, recette ou lien.</p>
-      <p style="margin:0 0 10px;">✦ <strong>Watchlists</strong> — vos envies à faire, privées à vous deux.</p>
+      <p style="margin:0 0 10px;">＋ <strong>Ajouter</strong> — s'adapte à l'onglet où vous êtes : activité, recette, lien ou article.</p>
+      <p style="margin:0 0 10px;">✦ <strong>Watchlist</strong> — votre liste commune d'envies à faire, privée à vous deux.</p>
       <p style="margin:0 0 10px;">🍳 <strong>Recettes</strong> — partagées avec tous, notables, avec photos.</p>
-      <p style="margin:0 0 10px;">🔗 <strong>Liens</strong> — vos liens importants (réservations, docs…), privés à vous deux.</p>
+      <p style="margin:0 0 10px;">🔗 <strong>Liens &amp; articles</strong> — vos liens importants et les articles à lire, privés à vous deux.</p>
       <p style="margin:0;">🏷️ Une petite icône "Légende" sur la carte explique chaque symbole si besoin.</p>
     </div>
     <button class="btn primary" id="btn-intro-close" style="width:100%; margin-top:18px;">C'est parti !</button>
@@ -368,8 +368,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <h2>Watchlists</h2>
       </div>
       <div class="subtabs">
-        <button data-wl="perso" class="active">Ma liste</button>
-        <button data-wl="commune">Notre liste commune</button>
+        <button data-wl="commune" class="active">Notre liste</button>
         <button data-wl="recipes">🍳 Recettes à essayer</button>
       </div>
       <div class="scroll-area" id="watchlist-list"></div>
@@ -393,14 +392,21 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 
     <!-- ===== LIENS ===== -->
     <section class="view" id="view-liens">
-      <div class="list-header">
-        <h2>Liens importants</h2>
+      <div class="list-header" style="border-bottom:none; padding-bottom:0;">
+        <h2>Liens &amp; articles</h2>
+      </div>
+      <div class="subtabs">
+        <button data-lk="liens" class="active">🔗 Liens importants</button>
+        <button data-lk="articles">📰 Articles à lire</button>
+      </div>
+      <div class="list-header" style="padding-top:12px;">
         <div class="search-row">
-          <input type="text" id="link-search" placeholder="Chercher un lien…">
-          <button class="icon-btn" id="btn-add-link" title="Nouveau lien">＋</button>
+          <input type="text" id="link-search" placeholder="Chercher un lien…" aria-label="Rechercher">
+          <button class="icon-btn" id="btn-add-link" title="Nouveau lien" aria-label="Ajouter">＋</button>
         </div>
       </div>
       <div class="scroll-area" id="links-list"></div>
+      <div class="scroll-area" id="articles-list" style="display:none;"></div>
     </section>
   </main>
 
@@ -440,6 +446,32 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <div class="hint" id="export-count" style="margin-top:8px;"></div>
         <button class="btn" id="btn-import" style="width:100%; margin-top:10px;">📥 Restaurer depuis une sauvegarde</button>
         <input type="file" accept="application/json,.json" id="import-file-input" aria-label="Choisir un fichier de sauvegarde à restaurer" style="display:none;">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SHEET: article ===== -->
+<div class="sheet-overlay" id="sheet-article-form">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head"><h3 id="article-form-title">Nouvel article</h3><button class="close-x" data-close="sheet-article-form">✕</button></div>
+    <div class="sheet-body pad-safe">
+      <div class="field">
+        <label for="af-title">Titre</label>
+        <input type="text" id="af-title" placeholder="ex: Les 10 plus beaux lacs de Suisse">
+      </div>
+      <div class="field">
+        <label for="af-url">Lien de l'article (URL)</label>
+        <input type="text" id="af-url" placeholder="https://…" autocapitalize="off" autocorrect="off">
+      </div>
+      <div class="field">
+        <label for="af-notes">Pourquoi on le lit ? (optionnel)</label>
+        <textarea id="af-notes" placeholder="Une idée de sortie, une recette, un bon plan…"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn danger-outline" id="btn-delete-article" style="display:none;">Supprimer</button>
+        <button class="btn primary" id="btn-save-article" style="flex:2;">Enregistrer</button>
       </div>
     </div>
   </div>
@@ -1205,11 +1237,13 @@ function guessMeteo(cats){
 const State = {
   profile: null,
   activities: [],
-  watchlistPerso: [],   // [{id, activityId, done, dateDone}]
   watchlistCommune: [],
   recipeWatchlist: [],
   links: [],
   editingLinkId: null,
+  articles: [],
+  editingArticleId: null,
+  lkTab: 'liens',
   seasonalMonth: new Date().getMonth()+1,
   carnetCitations: [],
   pendingCitation: null,
@@ -1220,7 +1254,7 @@ const State = {
   markers: {},          // activityId -> L.Marker
   userMarker: null,
   view: 'carte',
-  wlTab: 'perso',
+  wlTab: 'commune',
   pickingOnMap: false,
   pendingLoc: null,     // {lat,lng} chosen for the form in progress
   editingId: null,
@@ -1288,7 +1322,7 @@ async function setMyNameCache(name){
 function encodeKeyPart(s){ return String(s).replace(/[.#$\[\]\/]/g, '_'); }
 // Seules les watchlists sont privées par groupe. Le répertoire d'activités, les recettes
 // et les options personnalisées restent communs à tout le monde, tous groupes confondus.
-const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links', 'carnet-citations']);
+const GROUP_SCOPED_KEYS = new Set(['watchlist-commune', 'recipe-watchlist', 'links', 'articles', 'carnet-citations']);
 function fbPath(key, shared){
   if(shared){
     if(GROUP_SCOPED_KEYS.has(key)) return 'groups/'+(myGroup()||'sans-groupe')+'/'+key;
@@ -1323,7 +1357,7 @@ async function storeDelete(key, shared){
 }
 
 async function loadAll(){
-  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist, links, carnetCitations] = await Promise.all([
+  const [activities, wlPerso, wlCommune, customOptions, recipesIndex, recipeWatchlist, links, articles, carnetCitations] = await Promise.all([
     storeGet('activities', true),
     storeGet('watchlist-perso', false),
     storeGet('watchlist-commune', true),
@@ -1331,17 +1365,28 @@ async function loadAll(){
     storeGet('recipes-index', true),
     storeGet('recipe-watchlist', true),
     storeGet('links', true),
+    storeGet('articles', true),
     storeGet('carnet-citations', true),
   ]);
   State.activities = activities || [];
-  State.watchlistPerso = wlPerso || [];
   State.watchlistCommune = wlCommune || [];
+  // Migration : l'ancienne « Ma liste » est fusionnée dans la liste commune (sans doublon)
+  if(Array.isArray(wlPerso) && wlPerso.length){
+    const known = new Set(State.watchlistCommune.map(w=>w.activityId));
+    let moved = 0;
+    wlPerso.forEach(w=>{ if(w && w.activityId && !known.has(w.activityId)){ State.watchlistCommune.push(w); known.add(w.activityId); moved++; } });
+    try{
+      if(moved) await storeSet('watchlist-commune', State.watchlistCommune, true);
+      await storeSet('watchlist-perso', [], false);
+    }catch(e){ console.warn('Migration watchlist perso', e); }
+  }
   State.customMeteos = (customOptions && customOptions.meteos) || [];
   State.customDurees = (customOptions && customOptions.durees) || [];
   State.customCategories = (customOptions && customOptions.categories) || [];
   State.recipesIndex = recipesIndex || [];
   State.recipeWatchlist = recipeWatchlist || [];
   State.links = links || [];
+  State.articles = articles || [];
   State.carnetCitations = carnetCitations || [];
 }
 
@@ -1458,7 +1503,7 @@ function popupHtml(a){
     (avg?'<div class="stars">'+starsStr(avg)+'</div>':'<div class="hint" style="font-size:11px;color:var(--ink-faint)">Pas encore noté</div>')+
     '<div class="popup-actions">'+
       '<button data-act="detail" data-id="'+a.id+'">Détails</button>'+
-      '<button data-act="wlperso" data-id="'+a.id+'" class="primary">＋ Ma liste</button>'+
+      '<button data-act="wlcommune" data-id="'+a.id+'" class="primary">＋ Notre liste</button>'+
     '</div>';
 }
 function wirePopup(id){
@@ -1466,7 +1511,7 @@ function wirePopup(id){
     btn.onclick = ()=>{
       const aid = btn.dataset.id;
       if(btn.dataset.act==='detail'){ State.map.closePopup(); openDetail(aid); }
-      if(btn.dataset.act==='wlperso'){ addToWatchlist(aid,'perso'); }
+      if(btn.dataset.act==='wlcommune'){ addToWatchlist(aid); }
     };
   });
 }
@@ -1481,7 +1526,6 @@ async function exportBackup(){
     exportedAt: new Date().toISOString(),
     profile: State.profile,
     activities: State.activities,
-    watchlistPerso: State.watchlistPerso,
     watchlistCommune: State.watchlistCommune,
     customOptions: {meteos: State.customMeteos, durees: State.customDurees, categories: State.customCategories},
     recipes: fullRecipes
@@ -1537,9 +1581,10 @@ async function importBackupFile(e){
       await storeSet('watchlist-commune', State.watchlistCommune, true);
     }
     if(Array.isArray(data.watchlistPerso)){
-      const existingIds = new Set(State.watchlistPerso.map(w=>w.id));
-      data.watchlistPerso.forEach(w=>{ if(!existingIds.has(w.id)) State.watchlistPerso.push(w); });
-      await storeSet('watchlist-perso', State.watchlistPerso, false);
+      // anciennes sauvegardes : on fusionne l'ancienne liste perso dans la commune
+      const known = new Set(State.watchlistCommune.map(w=>w.activityId));
+      data.watchlistPerso.forEach(w=>{ if(w && !known.has(w.activityId)){ State.watchlistCommune.push(w); known.add(w.activityId); } });
+      await storeSet('watchlist-commune', State.watchlistCommune, true);
     }
     if(data.customOptions){
       (data.customOptions.meteos||[]).forEach(m=>{ if(!State.customMeteos.some(x=>x.id===m.id)) State.customMeteos.push(m); });
@@ -2137,7 +2182,6 @@ function filteredActivities(){
 }
 function watchlistIds(){
   const ids = new Set();
-  State.watchlistPerso.forEach(w=>ids.add(w.activityId));
   State.watchlistCommune.forEach(w=>ids.add(w.activityId));
   return ids;
 }
@@ -2196,7 +2240,7 @@ function renderRepertoire(){
       '<button class="quick-add" data-id="'+a.id+'" title="Ajouter à notre liste">＋</button>';
     row.querySelector('.info').onclick = ()=>openDetail(a.id);
     row.querySelector('.cat-badge').onclick = ()=>openDetail(a.id);
-    row.querySelector('.quick-add').onclick = (ev)=>{ ev.stopPropagation(); addToWatchlist(a.id,'commune'); };
+    row.querySelector('.quick-add').onclick = (ev)=>{ ev.stopPropagation(); addToWatchlist(a.id); };
     box.appendChild(row);
   });
 }
@@ -2204,26 +2248,23 @@ function renderRepertoire(){
 /* ============================================================
    WATCHLISTS
    ============================================================ */
-function addToWatchlist(activityId, which){
-  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
+function addToWatchlist(activityId){
+  const list = State.watchlistCommune;
   if(list.some(x=>x.activityId===activityId)){
-    showToast('Déjà dans '+(which==='perso'?'ta liste':'la liste commune')+'.');
+    showToast('Déjà dans votre liste.');
     return;
   }
   list.push({id:uid(), activityId, done:false, dateDone:null, addedAt:Date.now()});
-  if(which==='perso') storeSet('watchlist-perso', State.watchlistPerso, false);
-  else storeSet('watchlist-commune', State.watchlistCommune, true);
-  showToast('Ajouté à '+(which==='perso'?'ta liste':'la liste commune')+' ✓');
+  storeSet('watchlist-commune', State.watchlistCommune, true);
+  showToast('Ajouté à votre liste ✓');
   renderWatchlist();
 }
 function toggleDone(which, entryId){
-  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
-  const e = list.find(x=>x.id===entryId);
+  const e = State.watchlistCommune.find(x=>x.id===entryId);
   if(!e) return;
   e.done = !e.done;
   e.dateDone = e.done ? Date.now() : null;
-  if(which==='perso') storeSet('watchlist-perso', State.watchlistPerso, false);
-  else storeSet('watchlist-commune', State.watchlistCommune, true);
+  storeSet('watchlist-commune', State.watchlistCommune, true);
   renderWatchlist();
   if(e.done){
     const act = State.activities.find(a=>a.id===e.activityId);
@@ -2231,8 +2272,8 @@ function toggleDone(which, entryId){
   }
 }
 function removeFromWatchlist(which, entryId){
-  if(which==='perso'){ State.watchlistPerso = State.watchlistPerso.filter(x=>x.id!==entryId); storeSet('watchlist-perso', State.watchlistPerso, false); }
-  else{ State.watchlistCommune = State.watchlistCommune.filter(x=>x.id!==entryId); storeSet('watchlist-commune', State.watchlistCommune, true); }
+  State.watchlistCommune = State.watchlistCommune.filter(x=>x.id!==entryId);
+  storeSet('watchlist-commune', State.watchlistCommune, true);
   renderWatchlist();
 }
 async function addToRecipeWatchlist(recipeId){
@@ -2348,7 +2389,7 @@ function renderWatchlist(){
     return;
   }
 
-  const list = which==='perso' ? State.watchlistPerso : State.watchlistCommune;
+  const list = State.watchlistCommune;
   box.innerHTML='';
   if(!list.length){
     box.innerHTML = '<div class="empty-state"><span class="big">✦</span>Rien ici pour l\'instant.<br>Épingle une activité depuis la carte ou le répertoire.</div>';
@@ -2405,8 +2446,7 @@ function openDetail(id){
   html += '<div class="hint" style="margin-bottom:10px;">Ajouté par '+escapeHtml(a.addedBy||'quelqu\'un')+'</div>';
 
   html += '<div class="btn-row">'+
-    '<button class="btn" id="det-add-perso">＋ Ma liste</button>'+
-    '<button class="btn" id="det-add-commune">＋ Notre liste</button>'+
+    '<button class="btn primary" id="det-add-commune" style="flex:1;">＋ Ajouter à notre liste</button>'+
     '</div>'+
     '<div class="btn-row"><button class="btn ghost" id="det-edit" style="flex:1;">Modifier ce lieu</button></div>';
 
@@ -2425,8 +2465,7 @@ function openDetail(id){
   box.querySelectorAll('#rev-stars span').forEach(s=>{
     s.onclick = ()=>{ chosenStars = parseInt(s.dataset.n,10); box.querySelectorAll('#rev-stars span').forEach(x=>x.classList.toggle('on', parseInt(x.dataset.n,10)<=chosenStars)); };
   });
-  box.querySelector('#det-add-perso').onclick = ()=>addToWatchlist(a.id,'perso');
-  box.querySelector('#det-add-commune').onclick = ()=>addToWatchlist(a.id,'commune');
+  box.querySelector('#det-add-commune').onclick = ()=>addToWatchlist(a.id);
   box.querySelector('#det-edit').onclick = ()=>{ closeSheet('sheet-detail'); openForm(a.id); };
   box.querySelector('#rev-save').onclick = ()=>{
     if(!chosenStars){ showToast('Choisis une note pour publier.'); return; }
@@ -2715,10 +2754,8 @@ async function saveActivityFromForm(){
 function deleteActivity(){
   if(!State.editingId) return;
   State.activities = State.activities.filter(x=>x.id!==State.editingId);
-  State.watchlistPerso = State.watchlistPerso.filter(x=>x.activityId!==State.editingId);
   State.watchlistCommune = State.watchlistCommune.filter(x=>x.activityId!==State.editingId);
   storeSet('activities', State.activities, true);
-  storeSet('watchlist-perso', State.watchlistPerso, false);
   storeSet('watchlist-commune', State.watchlistCommune, true);
   closeSheet('sheet-form');
   showToast('Activité supprimée');
@@ -3120,6 +3157,120 @@ async function deleteLink(){
 }
 
 /* ============================================================
+   ARTICLES À LIRE (privés par groupe)
+   ============================================================ */
+function domainOf(url){
+  try{ return new URL(url).hostname.replace(/^www\./,''); }catch(e){ return url || ''; }
+}
+function renderArticles(){
+  const box = document.getElementById('articles-list');
+  if(!box) return;
+  const q = (document.getElementById('link-search').value||'').toLowerCase();
+  let list = State.articles.filter(a=>{
+    if(!q) return true;
+    return (a.title||'').toLowerCase().includes(q) || (a.url||'').toLowerCase().includes(q) || (a.notes||'').toLowerCase().includes(q);
+  });
+  // À lire d'abord (les plus récents en haut), puis les articles déjà lus
+  list = list.slice().sort((a,b)=> ((a.read?1:0)-(b.read?1:0)) || ((b.createdAt||0)-(a.createdAt||0)));
+  box.innerHTML='';
+  if(!State.articles.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">📰</span>Aucun article pour l\'instant.<br>Gardez ici les articles à lire ensemble avec le bouton ＋.</div>';
+    return;
+  }
+  if(!list.length){
+    box.innerHTML = '<div class="empty-state"><span class="big">🔍</span>Aucun article ne correspond.</div>';
+    return;
+  }
+  const toRead = State.articles.filter(a=>!a.read).length;
+  const head = document.createElement('div');
+  head.className='hint';
+  head.style.cssText='padding:10px 16px 0;';
+  head.textContent = toRead ? (toRead+' article'+(toRead>1?'s':'')+' à lire') : 'Tout est lu, bravo ✓';
+  box.appendChild(head);
+  list.forEach(a=>{
+    const domain = domainOf(a.url);
+    const row = document.createElement('div');
+    row.className='activity-row';
+    row.innerHTML = '<div class="cat-badge">📰</div>'+
+      '<div class="info" style="cursor:pointer;">'+
+        '<p class="name" style="'+(a.read?'text-decoration:line-through;color:var(--ink-faint);':'')+'">'+escapeHtml(a.title || domain)+'</p>'+
+        '<div class="meta"><span>'+escapeHtml(domain)+'</span>'+(a.addedBy?'<span>par '+escapeHtml(a.addedBy)+'</span>':'')+(a.read?'<span>lu ✓</span>':'')+'</div>'+
+        (a.notes?'<div class="meta"><span>'+escapeHtml(a.notes)+'</span></div>':'')+
+      '</div>'+
+      '<div class="check-row">'+
+        '<button class="check-circle'+(a.read?' done':'')+'" data-read="'+a.id+'" aria-label="'+(a.read?'Marquer comme à lire':'Marquer comme lu')+'">'+(a.read?'✓':'')+'</button>'+
+        '<button class="remove-x" data-edit="'+a.id+'" title="Modifier" aria-label="Modifier">✏️</button>'+
+      '</div>';
+    row.querySelector('.info').onclick = ()=>{ window.open(a.url, '_blank', 'noopener'); };
+    row.querySelector('[data-read]').onclick = (ev)=>{ ev.stopPropagation(); toggleArticleRead(a.id); };
+    row.querySelector('[data-edit]').onclick = (ev)=>{ ev.stopPropagation(); openArticleForm(a); };
+    box.appendChild(row);
+  });
+}
+function openArticleForm(existing){
+  State.editingArticleId = existing ? existing.id : null;
+  document.getElementById('article-form-title').textContent = existing ? "Modifier l'article" : 'Nouvel article';
+  document.getElementById('btn-delete-article').style.display = existing ? 'block' : 'none';
+  document.getElementById('af-title').value = existing ? (existing.title||'') : '';
+  document.getElementById('af-url').value = existing ? (existing.url||'') : '';
+  document.getElementById('af-notes').value = existing ? (existing.notes||'') : '';
+  openSheet('sheet-article-form');
+}
+async function saveArticle(){
+  let url = document.getElementById('af-url').value.trim();
+  if(!url){ showToast("Colle ou tape le lien de l'article."); return; }
+  if(!/^https?:\/\//i.test(url)) url = 'https://'+url;
+  const title = document.getElementById('af-title').value.trim();
+  const notes = document.getElementById('af-notes').value.trim();
+  const id = State.editingArticleId || uid();
+  const idx = State.articles.findIndex(x=>x.id===id);
+  const old = idx>=0 ? State.articles[idx] : null;
+  const entry = {id, title, url, notes,
+    read: old ? !!old.read : false,
+    readAt: old ? (old.readAt||null) : null,
+    createdAt: old ? (old.createdAt||Date.now()) : Date.now(),
+    addedBy: old ? (old.addedBy||'Anonyme') : ((State.profile&&State.profile.name)||'Anonyme')};
+  if(idx>=0) State.articles[idx] = entry; else State.articles.push(entry);
+  await storeSet('articles', State.articles, true);
+  closeSheet('sheet-article-form');
+  showToast('Article enregistré ✓');
+  renderArticles();
+}
+async function toggleArticleRead(id){
+  const a = State.articles.find(x=>x.id===id);
+  if(!a) return;
+  a.read = !a.read;
+  a.readAt = a.read ? Date.now() : null;
+  await storeSet('articles', State.articles, true);
+  renderArticles();
+}
+async function deleteArticle(){
+  if(!State.editingArticleId) return;
+  if(!confirm('Supprimer cet article ?')) return;
+  State.articles = State.articles.filter(x=>x.id!==State.editingArticleId);
+  await storeSet('articles', State.articles, true);
+  closeSheet('sheet-article-form');
+  showToast('Article supprimé');
+  renderArticles();
+}
+function setLinksTab(tab){
+  State.lkTab = tab;
+  document.querySelectorAll('.subtabs [data-lk]').forEach(x=>x.classList.toggle('active', x.dataset.lk===tab));
+  document.getElementById('links-list').style.display = tab==='liens' ? '' : 'none';
+  document.getElementById('articles-list').style.display = tab==='articles' ? '' : 'none';
+  document.getElementById('link-search').placeholder = tab==='liens' ? 'Chercher un lien…' : 'Chercher un article…';
+  document.getElementById('btn-add-link').title = tab==='liens' ? 'Nouveau lien' : 'Nouvel article';
+  updateAddLabel();
+  renderLinks(); renderArticles();
+}
+function updateAddLabel(){
+  const addLabel = document.getElementById('btn-add-label');
+  if(!addLabel) return;
+  const n = State.view;
+  addLabel.textContent = n==='recettes' ? 'Recette' : (n==='liens' ? (State.lkTab==='articles' ? 'Article' : 'Lien') : 'Activité');
+}
+
+/* ============================================================
    SURPRISE
    ============================================================ */
 function doSurprise(){
@@ -3145,7 +3296,7 @@ function doSurprise(){
     if(mk) State.clusterGroup.zoomToShowLayer(mk, ()=>mk.openPopup());
     else State.map.setView([a.lat,a.lng], 14);
   };
-  box.querySelector('#sur-list').onclick = ()=>addToWatchlist(a.id,'commune');
+  box.querySelector('#sur-list').onclick = ()=>addToWatchlist(a.id);
   openSheet('sheet-surprise');
 }
 
@@ -3223,8 +3374,7 @@ function switchView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
-  const addLabel = document.getElementById('btn-add-label');
-  if(addLabel) addLabel.textContent = name==='recettes' ? 'Recette' : (name==='liens' ? 'Lien' : 'Activité');
+  updateAddLabel();
   if(name==='carte') setTimeout(()=>State.map.invalidateSize(), 50);
 }
 
@@ -3237,6 +3387,7 @@ function renderAll(){
   renderWatchlist();
   renderRecipes();
   renderLinks();
+  renderArticles();
   refreshFilterButtons();
 }
 
@@ -3299,7 +3450,7 @@ async function startApp(){
   document.querySelectorAll('.tabbar [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
   document.getElementById('btn-add').onclick = ()=>{
     if(State.view==='recettes') openRecipeForm(null);
-    else if(State.view==='liens') openLinkForm(null);
+    else if(State.view==='liens') { if(State.lkTab==='articles') openArticleForm(null); else openLinkForm(null); }
     else openForm(null);
   };
 
@@ -3319,7 +3470,7 @@ async function startApp(){
 
   document.getElementById('btn-profile').onclick = ()=>{
     document.getElementById('profile-name-display').textContent = State.profile ? State.profile.name : '(non défini)';
-    document.getElementById('export-count').textContent = State.activities.length+' activités, '+(State.watchlistPerso.length)+' dans ta liste, '+(State.watchlistCommune.length)+' dans la liste commune.';
+    document.getElementById('export-count').textContent = State.activities.length+' activités, '+(State.watchlistCommune.length)+' dans votre liste commune.';
     openSheet('sheet-profile');
   };
   document.getElementById('btn-intro-close').onclick = ()=>{
@@ -3411,8 +3562,11 @@ async function startApp(){
   document.getElementById('seasonal-next').onclick = ()=>{ State.seasonalMonth = State.seasonalMonth===12 ? 1 : State.seasonalMonth+1; renderSeasonal(); };
   document.getElementById('btn-recipe-surprise').onclick = openRecipeSurprisePicker;
   document.getElementById('btn-add-recipe').onclick = ()=>openRecipeForm(null);
-  document.getElementById('link-search').addEventListener('input', renderLinks);
-  document.getElementById('btn-add-link').onclick = ()=>openLinkForm(null);
+  document.getElementById('link-search').addEventListener('input', ()=>{ renderLinks(); renderArticles(); });
+  document.getElementById('btn-add-link').onclick = ()=>{ if(State.lkTab==='articles') openArticleForm(null); else openLinkForm(null); };
+  document.getElementById('btn-save-article').onclick = saveArticle;
+  document.getElementById('btn-delete-article').onclick = deleteArticle;
+  document.querySelectorAll('.subtabs [data-lk]').forEach(b=>{ b.onclick = ()=>setLinksTab(b.dataset.lk); });
   document.getElementById('btn-save-link').onclick = saveLink;
   document.getElementById('btn-delete-link').onclick = deleteLink;
   document.getElementById('rf-photo-input').addEventListener('change', handleRecipePhotoInput);
@@ -3484,6 +3638,7 @@ async function startApp(){
   fbdb.ref(fbPath('recipes-index', true)).on('value', snap=>{ State.recipesIndex = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('recipe-watchlist', true)).on('value', snap=>{ State.recipeWatchlist = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('links', true)).on('value', snap=>{ State.links = snap.val() || []; renderAll(); });
+  fbdb.ref(fbPath('articles', true)).on('value', snap=>{ State.articles = snap.val() || []; renderAll(); });
   fbdb.ref(fbPath('carnet-citations', true)).on('value', snap=>{ State.carnetCitations = snap.val() || []; renderCarnet(); });
   fbdb.ref(fbPath('custom-options', true)).on('value', snap=>{
     const v = snap.val();
