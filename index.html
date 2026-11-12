@@ -282,10 +282,15 @@ main{flex:1 1 auto; position:relative; min-height:0;}
   <span style="font-size:46px; margin-bottom:8px;">🧭</span>
   <h2 style="font-family:var(--font-display); margin:0 0 4px; font-size:22px;">Carnet à Deux</h2>
   <p style="color:var(--ink-soft); font-size:13.5px; margin:0 0 22px; text-align:center;">Connectez-vous pour accéder à votre carnet</p>
-  <input type="email" id="login-email" autocomplete="username" placeholder="Email" style="width:100%; max-width:320px; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); margin-bottom:10px; font-size:16px;">
-  <input type="password" id="login-password" autocomplete="current-password" placeholder="Mot de passe" style="width:100%; max-width:320px; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); margin-bottom:16px; font-size:16px;">
-  <button class="btn primary" id="login-btn" style="width:100%; max-width:320px; padding:13px;">Se connecter</button>
-  <div id="login-error" style="color:var(--danger); font-size:13px; margin-top:12px; text-align:center;"></div>
+  <input type="email" id="login-email" autocomplete="username" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Email" aria-label="Email" style="width:100%; max-width:320px; padding:12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); margin-bottom:10px; font-size:16px;">
+  <div style="position:relative; width:100%; max-width:320px; margin-bottom:16px;">
+    <input type="password" id="login-password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Mot de passe" aria-label="Mot de passe" style="width:100%; padding:12px 48px 12px 14px; border-radius:9px; border:1px solid var(--line); background:var(--paper-3); font-size:16px;">
+    <button type="button" id="login-toggle-pass" aria-label="Afficher le mot de passe" style="position:absolute; right:2px; top:50%; transform:translateY(-50%); width:44px; height:44px; background:none; border:none; font-size:18px;">👁️</button>
+  </div>
+  <button class="btn primary" id="login-btn" style="flex:0 0 auto; width:100%; max-width:320px; padding:13px;">Se connecter</button>
+  <div id="login-error" role="alert" style="color:var(--danger); font-size:13px; margin-top:12px; text-align:center; max-width:320px; line-height:1.45;"></div>
+  <div id="login-code" style="color:var(--ink-faint); font-size:11px; margin-top:6px; text-align:center;"></div>
+  <button type="button" id="login-forgot" class="btn ghost" style="flex:0 0 auto; margin-top:14px; max-width:320px; font-size:14px; text-decoration:underline;">Mot de passe oublié ?</button>
 </div>
 
 <div id="intro-overlay" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(31,46,35,.55); align-items:flex-end; justify-content:center;">
@@ -329,13 +334,13 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <div class="map-search-wrap">
           <div class="map-search-row">
             <input type="text" id="map-search" placeholder="🔍 Rechercher un lieu, un canton…">
-            <button class="map-filter-btn" id="btn-open-filters-map" title="Filtres">⚙️</button>
+            <button class="map-filter-btn" id="btn-open-filters-map" title="Filtres" aria-label="Filtres">⚙️</button>
           </div>
           <div class="geo-results" id="map-search-results" style="display:none;"></div>
         </div>
         <div class="map-search-row2">
           <div class="weather-chip" id="weather-chip">🌡️ <span class="t">Météo…</span></div>
-          <button class="locate-btn" id="btn-locate" title="Me localiser">📍</button>
+          <button class="locate-btn" id="btn-locate" title="Me localiser" aria-label="Me localiser">📍</button>
         </div>
       </div>
       <div class="map-fabs">
@@ -351,7 +356,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <h2>Répertoire</h2>
         <div class="search-row">
           <input type="text" id="search-input" placeholder="Chercher un nom, un canton, une ville…">
-          <button class="icon-btn" id="btn-open-filters-2">⚙️</button>
+          <button class="icon-btn" id="btn-open-filters-2" title="Filtrer" aria-label="Filtrer">⚙️</button>
         </div>
         <div class="chip-group" id="repertoire-sort" style="margin-top:8px; margin-bottom:0;">
           <button type="button" class="chip selected" data-sort="distance">📍 Distance</button>
@@ -380,9 +385,9 @@ main{flex:1 1 auto; position:relative; min-height:0;}
         <h2>Recettes</h2>
         <div class="search-row">
           <input type="text" id="recipe-search" placeholder="Chercher une recette, un type…">
-          <button class="icon-btn" id="btn-seasonal" title="Fruits et légumes de saison">🌱</button>
-          <button class="icon-btn" id="btn-recipe-surprise" title="Qu'est-ce qu'on mange ?">🎲</button>
-          <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette">＋</button>
+          <button class="icon-btn" id="btn-seasonal" title="Fruits et légumes de saison" aria-label="Fruits et légumes de saison">🌱</button>
+          <button class="icon-btn" id="btn-recipe-surprise" title="Qu'est-ce qu'on mange ?" aria-label="Qu'est-ce qu'on mange ?">🎲</button>
+          <button class="icon-btn" id="btn-add-recipe" title="Nouvelle recette" aria-label="Nouvelle recette">＋</button>
         </div>
         <div class="hint" style="margin:10px 0 4px;">Filtrer par type :</div>
         <div class="chip-group" id="recipe-tag-filter" style="margin-top:0; margin-bottom:0;"></div>
@@ -426,7 +431,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-profile">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Profil & sauvegarde</h3><button class="close-x" data-close="sheet-profile">✕</button></div>
+    <div class="sheet-head"><h3>Profil & sauvegarde</h3><button class="close-x" data-close="sheet-profile" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Connecté·e comme</label>
@@ -455,7 +460,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-article-photos">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="article-photos-title">Photos</h3><button class="close-x" data-close="sheet-article-photos">✕</button></div>
+    <div class="sheet-head"><h3 id="article-photos-title">Photos</h3><button class="close-x" data-close="sheet-article-photos" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="article-photos-body"></div>
   </div>
 </div>
@@ -464,7 +469,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-article-form">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="article-form-title">Nouvel article</h3><button class="close-x" data-close="sheet-article-form">✕</button></div>
+    <div class="sheet-head"><h3 id="article-form-title">Nouvel article</h3><button class="close-x" data-close="sheet-article-form" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label for="af-title">Titre</label>
@@ -495,7 +500,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-link-form">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="link-form-title">Nouveau lien</h3><button class="close-x" data-close="sheet-link-form">✕</button></div>
+    <div class="sheet-head"><h3 id="link-form-title">Nouveau lien</h3><button class="close-x" data-close="sheet-link-form" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Titre</label>
@@ -521,7 +526,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-legend">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Légende des catégories</h3><button class="close-x" data-close="sheet-legend">✕</button></div>
+    <div class="sheet-head"><h3>Légende des catégories</h3><button class="close-x" data-close="sheet-legend" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="legend-body"></div>
   </div>
 </div>
@@ -530,7 +535,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-citation-prompt">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>✓ Fait !</h3><button class="close-x" data-close="sheet-citation-prompt">✕</button></div>
+    <div class="sheet-head"><h3>✓ Fait !</h3><button class="close-x" data-close="sheet-citation-prompt" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label id="citation-prompt-label">Un mot pour se souvenir ?</label>
@@ -548,7 +553,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-carnet">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>📜 Notre carnet de citations</h3><button class="close-x" data-close="sheet-carnet">✕</button></div>
+    <div class="sheet-head"><h3>📜 Notre carnet de citations</h3><button class="close-x" data-close="sheet-carnet" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="carnet-body"></div>
   </div>
 </div>
@@ -557,7 +562,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-filters">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Filtrer</h3><button class="close-x" data-close="sheet-filters">✕</button></div>
+    <div class="sheet-head"><h3>Filtrer</h3><button class="close-x" data-close="sheet-filters" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Suggestion du jour</label>
@@ -595,7 +600,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-form">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="form-title">Nouvelle activité</h3><button class="close-x" data-close="sheet-form">✕</button></div>
+    <div class="sheet-head"><h3 id="form-title">Nouvelle activité</h3><button class="close-x" data-close="sheet-form" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Nom de l'activité *</label>
@@ -658,7 +663,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-detail">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Détail</h3><button class="close-x" data-close="sheet-detail">✕</button></div>
+    <div class="sheet-head"><h3>Détail</h3><button class="close-x" data-close="sheet-detail" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="detail-body"></div>
   </div>
 </div>
@@ -667,7 +672,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-recipe-form">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="recipe-form-title">Nouvelle recette</h3><button class="close-x" data-close="sheet-recipe-form">✕</button></div>
+    <div class="sheet-head"><h3 id="recipe-form-title">Nouvelle recette</h3><button class="close-x" data-close="sheet-recipe-form" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Nom du plat *</label>
@@ -717,7 +722,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-recipe-detail">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Recette</h3><button class="close-x" data-close="sheet-recipe-detail">✕</button></div>
+    <div class="sheet-head"><h3>Recette</h3><button class="close-x" data-close="sheet-recipe-detail" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="recipe-detail-body"></div>
   </div>
 </div>
@@ -726,7 +731,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-surprise">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Verdict du hasard</h3><button class="close-x" data-close="sheet-surprise">✕</button></div>
+    <div class="sheet-head"><h3>Verdict du hasard</h3><button class="close-x" data-close="sheet-surprise" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="surprise-body"></div>
   </div>
 </div>
@@ -735,7 +740,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-recipe-surprise-pick">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Qu'est-ce qu'on mange ?</h3><button class="close-x" data-close="sheet-recipe-surprise-pick">✕</button></div>
+    <div class="sheet-head"><h3>Qu'est-ce qu'on mange ?</h3><button class="close-x" data-close="sheet-recipe-surprise-pick" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="chip-group" id="recipe-surprise-types"></div>
     </div>
@@ -746,12 +751,12 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-seasonal">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>🌱 De saison</h3><button class="close-x" data-close="sheet-seasonal">✕</button></div>
+    <div class="sheet-head"><h3>🌱 De saison</h3><button class="close-x" data-close="sheet-seasonal" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px;">
-        <button class="icon-btn" id="seasonal-prev">◀︎</button>
+        <button class="icon-btn" id="seasonal-prev" title="Mois précédent" aria-label="Mois précédent">◀︎</button>
         <div id="seasonal-month-label" style="font-family:var(--font-display); font-size:19px; font-weight:700; min-width:110px; text-align:center;"></div>
-        <button class="icon-btn" id="seasonal-next">▶︎</button>
+        <button class="icon-btn" id="seasonal-next" title="Mois suivant" aria-label="Mois suivant">▶︎</button>
       </div>
       <div id="seasonal-body"></div>
     </div>
@@ -762,7 +767,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-recipe-surprise">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3>Au menu !</h3><button class="close-x" data-close="sheet-recipe-surprise">✕</button></div>
+    <div class="sheet-head"><h3>Au menu !</h3><button class="close-x" data-close="sheet-recipe-surprise" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe" id="recipe-surprise-body"></div>
   </div>
 </div>
@@ -771,7 +776,7 @@ main{flex:1 1 auto; position:relative; min-height:0;}
 <div class="sheet-overlay" id="sheet-add-option">
   <div class="sheet">
     <div class="sheet-grip"></div>
-    <div class="sheet-head"><h3 id="opt-sheet-title">Nouvelle option</h3><button class="close-x" data-close="sheet-add-option">✕</button></div>
+    <div class="sheet-head"><h3 id="opt-sheet-title">Nouvelle option</h3><button class="close-x" data-close="sheet-add-option" aria-label="Fermer">✕</button></div>
     <div class="sheet-body pad-safe">
       <div class="field">
         <label>Emoji (optionnel)</label>
@@ -804,9 +809,19 @@ const firebaseConfig = {
   messagingSenderId: "947128985286",
   appId: "1:947128985286:web:2b81eb1ead0ad5db9459c7"
 };
-firebase.initializeApp(firebaseConfig);
-const fbdb = firebase.database();
-const fbauth = firebase.auth();
+// Si le VPN ou un bloqueur de pubs empêche le chargement du module Google,
+// on l'explique clairement au lieu de laisser un bouton qui ne fait rien.
+const FB_LOAD_OK = (typeof firebase !== 'undefined');
+if(FB_LOAD_OK) firebase.initializeApp(firebaseConfig);
+const fbdb = FB_LOAD_OK ? firebase.database() : null;
+const fbauth = FB_LOAD_OK ? firebase.auth() : null;
+if(FB_LOAD_OK){
+  try{ fbauth.useDeviceLanguage(); }catch(e){}
+} else {
+  const el = document.getElementById('login-error');
+  if(el) el.textContent = "Le module de connexion Google n'a pas pu se charger. Ton VPN ou un bloqueur de pubs bloque probablement « gstatic.com ». Autorise ce site dans le VPN (ou coupe le filtrage de pubs/trackers), puis recharge la page.";
+  const cd = document.getElementById('login-code'); if(cd) cd.textContent = 'code : sdk-non-charge';
+}
 </script>
 <script>
 (function(){
@@ -2354,7 +2369,7 @@ function renderCarnet(){
   box.innerHTML = sorted.map(c=>{
     const dateStr = new Date(c.createdAt).toLocaleDateString('fr-CH', {day:'numeric', month:'long', year:'numeric'});
     return '<div style="padding:14px 0; border-bottom:1px solid var(--line); position:relative;">'+
-      '<button class="remove-x" data-del="'+c.id+'" style="position:absolute; top:12px; right:0;">✕</button>'+
+      '<button class="remove-x" data-del="'+c.id+'" aria-label="Supprimer ce mot" style="position:absolute; top:12px; right:0;">✕</button>'+
       '<p style="font-family:var(--font-display); font-size:16.5px; font-style:italic; margin:0 6px 8px 0; line-height:1.45; padding-right:28px;">«\u00a0'+escapeHtml(c.text)+'\u00a0»</p>'+
       '<div class="hint" style="margin:0;">'+(c.itemType==='recette'?'🍳':'📌')+' '+escapeHtml(c.itemName)+' · '+dateStr+' · '+escapeHtml(c.author)+'</div>'+
     '</div>';
@@ -2395,8 +2410,8 @@ function renderWatchlist(){
           '<div class="meta">'+(tag?tag.emoji+' '+tag.label:'')+(entry.done?' · faite ✓':'')+'</div>'+
         '</div>'+
         '<div class="check-row">'+
-          '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'">'+(entry.done?'✓':'')+'</button>'+
-          '<button class="remove-x" data-remove="'+entry.id+'">✕</button>'+
+          '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'" aria-label="'+(entry.done?'Marquer comme à faire':'Marquer comme fait')+'">'+(entry.done?'✓':'')+'</button>'+
+          '<button class="remove-x" data-remove="'+entry.id+'" aria-label="Retirer de la liste">✕</button>'+
         '</div>';
       row.querySelector('.info').onclick = ()=>openRecipeDetail(r.id);
       row.querySelector('[data-toggle]').onclick = (ev)=>{ ev.stopPropagation(); toggleRecipeDone(entry.id); };
@@ -2425,8 +2440,8 @@ function renderWatchlist(){
         '<div class="meta">'+(a.canton?escapeHtml(a.canton):'')+(entry.done?' · fait ✓':'')+'</div>'+
       '</div>'+
       '<div class="check-row">'+
-        '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'">'+(entry.done?'✓':'')+'</button>'+
-        '<button class="remove-x" data-remove="'+entry.id+'">✕</button>'+
+        '<button class="check-circle'+(entry.done?' done':'')+'" data-toggle="'+entry.id+'" aria-label="'+(entry.done?'Marquer comme à faire':'Marquer comme fait')+'">'+(entry.done?'✓':'')+'</button>'+
+        '<button class="remove-x" data-remove="'+entry.id+'" aria-label="Retirer de la liste">✕</button>'+
       '</div>';
     row.querySelector('.info').onclick = ()=>openDetail(a.id);
     row.querySelector('[data-toggle]').onclick = (ev)=>{ ev.stopPropagation(); toggleDone(which, entry.id); };
@@ -2956,7 +2971,7 @@ function renderTimeRows(){
     '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">'+
       '<input type="text" data-i="'+i+'" data-f="label" value="'+escapeHtml(t.label)+'" placeholder="Nom (ex: Cuisson)" style="flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3);">'+
       '<input type="text" data-i="'+i+'" data-f="duration" value="'+escapeHtml(t.duration)+'" placeholder="ex: 30 min" style="width:96px; padding:9px 10px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3);">'+
-      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+      '<button data-i="'+i+'" class="remove-x" aria-label="Supprimer ce temps">✕</button>'+
     '</div>'
   ).join('');
   box.querySelectorAll('input').forEach(inp=>{
@@ -2972,7 +2987,7 @@ function renderStepRows(){
     '<div style="display:flex; gap:8px; margin-bottom:8px; align-items:flex-start;">'+
       '<div style="width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--paper-3);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;margin-top:6px;">'+(i+1)+'</div>'+
       '<textarea data-i="'+i+'" placeholder="Décris cette étape…" style="flex:1; min-height:54px;">'+escapeHtml(s)+'</textarea>'+
-      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+      '<button data-i="'+i+'" class="remove-x" aria-label="Supprimer cette étape">✕</button>'+
     '</div>'
   ).join('');
   box.querySelectorAll('textarea').forEach(ta=>{
@@ -2989,7 +3004,7 @@ function renderIngredientRows(){
       '<input type="text" data-i="'+i+'" data-f="section" value="'+escapeHtml(ing.section)+'" placeholder="Section" style="width:76px; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:11.5px;">'+
       '<input type="text" data-i="'+i+'" data-f="qty" value="'+escapeHtml(ing.qty)+'" placeholder="200 g" style="width:66px; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:13px;">'+
       '<input type="text" data-i="'+i+'" data-f="name" value="'+escapeHtml(ing.name)+'" placeholder="de farine" style="flex:1; padding:9px 8px; border-radius:8px; border:1px solid var(--line); background:var(--paper-3); font-size:13px;">'+
-      '<button data-i="'+i+'" class="remove-x">✕</button>'+
+      '<button data-i="'+i+'" class="remove-x" aria-label="Supprimer cet ingrédient">✕</button>'+
     '</div>'
   ).join('');
   box.querySelectorAll('input').forEach(inp=>{
@@ -3018,7 +3033,7 @@ function renderPhotoPreview(){
   box.innerHTML = State.recipePhotos.map((p,i)=>
     '<div style="position:relative;">'+
       '<img src="'+p+'" alt="Photo ajoutée '+(i+1)+'" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">'+
-      '<button data-i="'+i+'" style="position:absolute;top:-8px;right:-8px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;line-height:1;">✕</button>'+
+      '<button data-i="'+i+'" aria-label="Retirer la photo '+(i+1)+'" style="position:absolute;top:-8px;right:-8px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;line-height:1;">✕</button>'+
     '</div>'
   ).join('');
   box.querySelectorAll('button').forEach(btn=>{
@@ -3131,7 +3146,7 @@ function renderLinks(){
         '<p class="name">'+escapeHtml(l.title || domain)+'</p>'+
         '<div class="meta"><span>'+escapeHtml(domain)+'</span>'+(l.addedBy?'<span>par '+escapeHtml(l.addedBy)+'</span>':'')+'</div>'+
       '</div>'+
-      '<button class="remove-x" data-edit="'+l.id+'" title="Modifier">✏️</button>';
+      '<button class="remove-x" data-edit="'+l.id+'" title="Modifier" aria-label="Modifier">✏️</button>';
     row.querySelector('.info').onclick = ()=>{ window.open(l.url, '_blank'); };
     row.querySelector('[data-edit]').onclick = (ev)=>{ ev.stopPropagation(); openLinkForm(l); };
     box.appendChild(row);
@@ -3740,33 +3755,123 @@ async function startApp(){
    CONNEXION (Firebase Authentication)
    ============================================================ */
 let appStarted = false;
-document.getElementById('login-btn').onclick = async ()=>{
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-password').value;
+
+// Traduit chaque code d'erreur Firebase en message clair, au lieu d'un "incorrect" passe-partout.
+function loginErrorMessage(code){
+  switch(code){
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+    case 'auth/wrong-password':
+      return "Email ou mot de passe incorrect. Vérifie l'email exact du compte (gmail ? icloud ?) ou touche « Mot de passe oublié ? » ci-dessous.";
+    case 'auth/user-not-found':
+      return "Aucun compte n'existe avec cet email. Vérifie l'adresse exacte utilisée lors de la création du compte.";
+    case 'auth/invalid-email':
+      return "Cet email n'a pas un format valide (espace en trop, caractère invisible ?).";
+    case 'auth/too-many-requests':
+      return "Trop d'essais : Google bloque temporairement ce compte par sécurité (souvent 15 à 60 min). Pour débloquer tout de suite : « Mot de passe oublié ? » ci-dessous.";
+    case 'auth/network-request-failed':
+    case 'auth/timeout':
+      return "Impossible de joindre le serveur de connexion Google. Le réseau mobile est faible ou le VPN bloque « googleapis.com ». Réessaie, ou autorise ce domaine dans le VPN.";
+    case 'auth/user-disabled':
+      return "Ce compte a été désactivé dans la console Firebase.";
+    case 'auth/operation-not-allowed':
+      return "La connexion par email/mot de passe n'est pas activée dans la console Firebase (Authentication → Sign-in method).";
+    case 'auth/api-key-not-valid':
+    case 'auth/invalid-api-key':
+      return "La clé Firebase de l'appli n'est pas acceptée par Google.";
+    default:
+      if(code && code.indexOf('requests-from-referer')>=0) return "La clé Firebase refuse ce site web (restriction de domaine dans Google Cloud).";
+      return "La connexion a échoué pour une raison inattendue.";
+  }
+}
+const NETWORK_CODES = new Set(['auth/network-request-failed','auth/timeout','auth/internal-error']);
+const loginSleep = ms => new Promise(r=>setTimeout(r,ms));
+function cleanEmail(v){
+  // enlève espaces, retours à la ligne et caractères invisibles parfois ajoutés par le copier-coller ou l'autocorrection iPhone
+  return String(v||'').replace(/[\s​-‍﻿ ]/g,'').toLowerCase();
+}
+let loginBusy = false;
+
+if(fbauth){
+  const btn = document.getElementById('login-btn');
   const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-  if(!email || !pass){ errEl.textContent = 'Entre ton email et ton mot de passe.'; return; }
-  try{
-    await fbauth.signInWithEmailAndPassword(email, pass);
-  }catch(e){
-    errEl.textContent = "Email ou mot de passe incorrect.";
-  }
-};
-document.getElementById('login-password').addEventListener('keydown', (e)=>{
-  if(e.key==='Enter') document.getElementById('login-btn').click();
-});
-fbauth.onAuthStateChanged(user=>{
-  const loginScreen = document.getElementById('login-screen');
-  if(user){
-    loginScreen.style.display = 'none';
-    if(!appStarted){
-      appStarted = true;
-      ensureUserGroupRecord().then(startApp);
+  const codeEl = document.getElementById('login-code');
+  const showErr = (msg, code)=>{ errEl.style.color='var(--danger)'; errEl.textContent = msg; codeEl.textContent = code ? 'code : '+code : ''; };
+  const showInfo = (msg)=>{ errEl.style.color='var(--ink-soft)'; errEl.textContent = msg; codeEl.textContent=''; };
+
+  btn.onclick = async ()=>{
+    if(loginBusy) return; // évite les doubles taps qui déclenchent le blocage "trop d'essais"
+    const emailInput = document.getElementById('login-email');
+    const email = cleanEmail(emailInput.value);
+    emailInput.value = email;
+    const pass = document.getElementById('login-password').value;
+    if(!email || !pass){ showErr('Entre ton email et ton mot de passe.'); return; }
+    if(navigator.onLine === false){ showErr("Ton téléphone n'a pas de connexion internet pour l'instant.", 'hors-ligne'); return; }
+
+    loginBusy = true; btn.disabled = true; btn.textContent = 'Connexion…';
+    showInfo('');
+    const MAX_TRIES = 3;
+    let lastCode = null;
+    for(let attempt=1; attempt<=MAX_TRIES; attempt++){
+      try{
+        await fbauth.signInWithEmailAndPassword(email, pass);
+        lastCode = null;
+        break; // succès : onAuthStateChanged prend le relais
+      }catch(e){
+        lastCode = (e && e.code) || 'inconnu';
+        console.warn('[connexion] tentative', attempt, lastCode, e && e.message);
+        if(NETWORK_CODES.has(lastCode) && attempt < MAX_TRIES){
+          showInfo('Réseau instable (VPN / 4G), nouvel essai '+(attempt+1)+'/'+MAX_TRIES+'…');
+          await loginSleep(1500*attempt);
+          continue;
+        }
+        break; // erreur non réseau : inutile de réessayer
+      }
     }
-  } else {
-    loginScreen.style.display = 'flex';
-  }
-});
+    if(lastCode) showErr(loginErrorMessage(lastCode), lastCode);
+    loginBusy = false; btn.disabled = false; btn.textContent = 'Se connecter';
+  };
+
+  document.getElementById('login-password').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') btn.click();
+  });
+
+  document.getElementById('login-toggle-pass').onclick = ()=>{
+    const inp = document.getElementById('login-password');
+    const b = document.getElementById('login-toggle-pass');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    b.textContent = show ? '🙈' : '👁️';
+    b.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  };
+
+  document.getElementById('login-forgot').onclick = async ()=>{
+    const emailInput = document.getElementById('login-email');
+    const email = cleanEmail(emailInput.value);
+    emailInput.value = email;
+    if(!email){ showErr("Écris d'abord ton email dans le champ ci-dessus, puis touche à nouveau « Mot de passe oublié ? »."); return; }
+    try{
+      await fbauth.sendPasswordResetEmail(email);
+      showInfo("Si un compte existe pour "+email+", un email de réinitialisation vient d'être envoyé. Regarde aussi dans les spams / courrier indésirable.");
+    }catch(e){
+      const code = (e && e.code) || 'inconnu';
+      showErr(loginErrorMessage(code), code);
+    }
+  };
+
+  fbauth.onAuthStateChanged(user=>{
+    const loginScreen = document.getElementById('login-screen');
+    if(user){
+      loginScreen.style.display = 'none';
+      if(!appStarted){
+        appStarted = true;
+        ensureUserGroupRecord().then(startApp);
+      }
+    } else {
+      loginScreen.style.display = 'flex';
+    }
+  });
+}
 })();
 </script>
 </body>
